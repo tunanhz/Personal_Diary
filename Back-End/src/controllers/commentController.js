@@ -6,7 +6,7 @@ const Diary = require("../models/Diary");
 // @access  Private (phải đăng nhập mới được comment)
 const addComment = async (req, res, next) => {
   try {
-    const { content } = req.body;
+    const { content, parentComment } = req.body;
 
     // Kiểm tra diary tồn tại và là public
     const diary = await Diary.findById(req.params.diaryId);
@@ -25,10 +25,29 @@ const addComment = async (req, res, next) => {
       });
     }
 
+    // Nếu reply, kiểm tra parent comment tồn tại
+    if (parentComment) {
+      const parent = await Comment.findById(parentComment);
+      if (!parent || parent.diary.toString() !== req.params.diaryId) {
+        return res.status(400).json({
+          success: false,
+          message: "Parent comment not found in this diary",
+        });
+      }
+      // Không cho reply vào reply (chỉ 1 cấp)
+      if (parent.parentComment) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot reply to a reply. Reply to the original comment instead.",
+        });
+      }
+    }
+
     const comment = await Comment.create({
       content,
       diary: diary._id,
       author: req.user._id,
+      parentComment: parentComment || null,
     });
 
     // Populate author trước khi trả về
@@ -72,17 +91,40 @@ const getComments = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     const [comments, total] = await Promise.all([
-      Comment.find({ diary: req.params.diaryId })
+      Comment.find({ diary: req.params.diaryId, parentComment: null })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .populate("author", "username"),
-      Comment.countDocuments({ diary: req.params.diaryId }),
+      Comment.countDocuments({ diary: req.params.diaryId, parentComment: null }),
     ]);
+
+    // Lấy replies cho tất cả parent comments
+    const parentIds = comments.map((c) => c._id);
+    const replies = await Comment.find({
+      diary: req.params.diaryId,
+      parentComment: { $in: parentIds },
+    })
+      .sort({ createdAt: 1 })
+      .populate("author", "username");
+
+    // Gom replies vào parent
+    const replyMap = {};
+    replies.forEach((r) => {
+      const pid = r.parentComment.toString();
+      if (!replyMap[pid]) replyMap[pid] = [];
+      replyMap[pid].push(r);
+    });
+
+    const data = comments.map((c) => {
+      const obj = c.toObject();
+      obj.replies = replyMap[c._id.toString()] || [];
+      return obj;
+    });
 
     res.status(200).json({
       success: true,
-      data: comments,
+      data,
       pagination: {
         page,
         limit,
@@ -133,9 +175,71 @@ const deleteComment = async (req, res, next) => {
 
     await comment.deleteOne();
 
+    // Xóa tất cả replies nếu đây là parent comment
+    await Comment.deleteMany({ parentComment: req.params.commentId });
+
     res.status(200).json({
       success: true,
       message: "Comment deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    React to a comment (toggle emoji)
+// @route   POST /api/diaries/:diaryId/comments/:commentId/react
+// @access  Private
+const reactToComment = async (req, res, next) => {
+  try {
+    const { emoji } = req.body;
+    const allowedEmojis = ["❤️", "😂", "😮", "😢", "👏"];
+
+    if (!emoji || !allowedEmojis.includes(emoji)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid emoji. Allowed: ${allowedEmojis.join(" ")}`,
+      });
+    }
+
+    const comment = await Comment.findById(req.params.commentId);
+
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: "Comment not found",
+      });
+    }
+
+    if (comment.diary.toString() !== req.params.diaryId) {
+      return res.status(400).json({
+        success: false,
+        message: "Comment does not belong to this diary",
+      });
+    }
+
+    const userId = req.user._id.toString();
+
+    const existingIndex = comment.reactions.findIndex(
+      (r) => r.user.toString() === userId && r.emoji === emoji
+    );
+
+    if (existingIndex > -1) {
+      comment.reactions.splice(existingIndex, 1);
+    } else {
+      comment.reactions = comment.reactions.filter(
+        (r) => r.user.toString() !== userId
+      );
+      comment.reactions.push({ user: req.user._id, emoji });
+    }
+
+    await comment.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        reactions: comment.reactions,
+      },
     });
   } catch (error) {
     next(error);
@@ -146,4 +250,5 @@ module.exports = {
   addComment,
   getComments,
   deleteComment,
+  reactToComment,
 };

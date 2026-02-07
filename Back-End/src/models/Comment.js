@@ -18,6 +18,25 @@ const commentSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    parentComment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Comment",
+      default: null,
+    },
+    reactions: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        emoji: {
+          type: String,
+          required: true,
+          enum: ["❤️", "😂", "😮", "😢", "👏"],
+        },
+      },
+    ],
   },
   {
     timestamps: true,
