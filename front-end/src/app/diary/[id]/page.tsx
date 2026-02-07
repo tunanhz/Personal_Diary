@@ -97,117 +97,163 @@ export default function DiaryDetailPage() {
     }
   };
 
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p className="text-red-600">{error}</p>;
-  if (!diary) return <p>Diary not found.</p>;
+  if (loading) return (
+    <div className="space-y-4 mt-4">
+      <div className="skeleton h-4 w-20" />
+      <div className="card">
+        <div className="skeleton h-7 w-2/3 mb-4" />
+        <div className="skeleton h-3 w-1/3 mb-6" />
+        <div className="skeleton h-3 w-full mb-2" />
+        <div className="skeleton h-3 w-full mb-2" />
+        <div className="skeleton h-3 w-3/4" />
+      </div>
+    </div>
+  );
+
+  if (error) return (
+    <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-200 mt-4">{error}</div>
+  );
+
+  if (!diary) return (
+    <div className="empty-state mt-12">
+      <div className="icon">🔍</div>
+      <h3>Diary not found</h3>
+      <p>This entry may have been deleted or made private.</p>
+      <Link href="/" className="btn-primary mt-4 inline-flex">Go Home</Link>
+    </div>
+  );
 
   const isOwner = user && diary.author?._id === user._id;
 
   return (
     <div>
-      <Link href={isOwner ? "/dashboard" : "/"} className="text-sm text-blue-600 hover:underline">
-        ← Back
+      {/* Back link */}
+      <Link
+        href={isOwner ? "/dashboard" : "/"}
+        className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors mb-4"
+      >
+        ← {isOwner ? "Back to Dashboard" : "Back to Feed"}
       </Link>
 
-      <article className="card mt-4">
-        <div className="flex items-start justify-between">
-          <h1 className="text-2xl font-bold">{diary.title}</h1>
-          <span
-            className={`text-xs px-2 py-0.5 rounded-full ${
-              diary.isPublic
-                ? "bg-green-100 text-green-700"
-                : "bg-zinc-200 text-zinc-600"
-            }`}
-          >
-            {diary.isPublic ? "Public" : "Private"}
+      {/* Article */}
+      <article className="card">
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-2xl font-bold text-slate-800">{diary.title}</h1>
+          <span className={diary.isPublic ? "badge-public" : "badge-private"}>
+            {diary.isPublic ? "🌐 Public" : "🔒 Private"}
           </span>
         </div>
 
-        <div className="flex items-center gap-3 mt-2 text-sm text-zinc-500">
-          <span>by <strong>{diary.author?.username}</strong></span>
-          <span>•</span>
-          <span>{new Date(diary.createdAt).toLocaleString()}</span>
+        <div className="flex items-center gap-3 mt-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className="avatar" style={{ width: 28, height: 28, fontSize: 12 }}>
+              {diary.author?.username?.charAt(0).toUpperCase()}
+            </div>
+            <span className="text-sm font-medium text-slate-700">{diary.author?.username}</span>
+          </div>
+          <span className="text-slate-300">•</span>
+          <span className="text-sm text-slate-400">
+            📅 {new Date(diary.createdAt).toLocaleDateString()}
+          </span>
           {diary.tags?.length > 0 && (
             <>
-              <span>•</span>
-              {diary.tags.map((t) => (
-                <span key={t} className="tag">{t}</span>
-              ))}
+              <span className="text-slate-300">•</span>
+              <div className="flex gap-1 flex-wrap">
+                {diary.tags.map((t) => (
+                  <span key={t} className="tag">{t}</span>
+                ))}
+              </div>
             </>
           )}
         </div>
 
-        <div className="mt-4 text-zinc-800 whitespace-pre-wrap leading-relaxed">
+        <div className="divider" />
+
+        <div className="text-slate-700 whitespace-pre-wrap leading-relaxed">
           {diary.content}
         </div>
       </article>
 
       {/* Comments Section */}
       <section className="mt-8">
-        <h2 className="text-lg font-semibold mb-4">
-          💬 Comments ({comments.length})
+        <h2 className="text-lg font-bold text-slate-800 mb-4">
+          💬 Comments <span className="text-slate-400 font-normal">({comments.length})</span>
         </h2>
 
         {/* Add comment form */}
         {token ? (
           diary.isPublic ? (
-            <form onSubmit={handleComment} className="flex gap-2 mb-6">
-              <input
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Write a comment..."
-                className="input flex-1"
-                required
-              />
-              <button
-                type="submit"
-                disabled={commentLoading}
-                className="btn-primary"
-              >
-                {commentLoading ? "..." : "Post"}
-              </button>
+            <form onSubmit={handleComment} className="card-highlight mb-6">
+              <div className="flex gap-2">
+                <input
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Share your thoughts..."
+                  className="input flex-1"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={commentLoading}
+                  className="btn-primary"
+                >
+                  {commentLoading ? "..." : "💬 Post"}
+                </button>
+              </div>
             </form>
           ) : (
             isOwner && (
-              <p className="text-sm text-zinc-400 mb-4">
-                Comments are disabled for private diaries.
-              </p>
+              <div className="bg-slate-50 text-slate-400 text-sm p-3 rounded-lg border border-slate-200 mb-4">
+                🔒 Comments are disabled for private diaries.
+              </div>
             )
           )
         ) : (
-          <p className="text-sm text-zinc-500 mb-4">
-            <Link href="/login" className="underline text-blue-600">
-              Login
+          <div className="bg-indigo-50 text-sm p-3 rounded-lg border border-indigo-200 mb-4">
+            <Link href="/login" className="text-indigo-600 font-medium hover:underline">
+              Sign in
             </Link>{" "}
-            to leave a comment.
-          </p>
+            <span className="text-indigo-400">to leave a comment.</span>
+          </div>
         )}
 
         {/* Comments list */}
         {comments.length === 0 ? (
-          <p className="text-zinc-400 text-sm">No comments yet.</p>
+          <div className="empty-state" style={{ padding: "2rem" }}>
+            <div className="icon" style={{ fontSize: "2rem" }}>💭</div>
+            <h3 style={{ fontSize: "1rem" }}>No comments yet</h3>
+            <p>Be the first to share your thoughts!</p>
+          </div>
         ) : (
           <ul className="space-y-3">
             {comments.map((c) => (
-              <li key={c._id} className="card py-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="font-medium text-sm">
-                      {c.author?.username}
-                    </span>
-                    <span className="text-xs text-zinc-400 ml-2">
-                      {new Date(c.createdAt).toLocaleString()}
-                    </span>
-                    <p className="text-sm mt-1">{c.content}</p>
+              <li key={c._id} className="card">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex gap-3 flex-1">
+                    <div className="avatar" style={{ width: 32, height: 32, fontSize: 13, flexShrink: 0 }}>
+                      {c.author?.username?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm text-slate-700">
+                          {c.author?.username}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          {new Date(c.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600 mt-1 leading-relaxed">{c.content}</p>
+                    </div>
                   </div>
                   {/* Can delete if comment owner or diary owner */}
                   {user &&
                     (c.author?._id === user._id || isOwner) && (
                       <button
                         onClick={() => handleDeleteComment(c._id)}
-                        className="text-red-400 hover:text-red-600 text-xs"
+                        className="btn-danger text-xs"
+                        title="Delete comment"
                       >
-                        Delete
+                        🗑️
                       </button>
                     )}
                 </div>

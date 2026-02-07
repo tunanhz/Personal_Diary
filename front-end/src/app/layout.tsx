@@ -30,9 +30,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          <div className="min-h-screen bg-zinc-50 text-zinc-900">
+          <div className="min-h-screen bg-slate-50 text-slate-900">
             <Navbar />
-            <main className="max-w-4xl mx-auto px-4 py-8">{children}</main>
+            <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">{children}</main>
+            <footer className="border-t border-slate-200 py-6 text-center text-sm text-slate-400">
+              © 2026 Personal Diary. Built with ❤️
+            </footer>
           </div>
         </AuthProvider>
       </body>

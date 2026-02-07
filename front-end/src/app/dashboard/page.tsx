@@ -129,147 +129,184 @@ export default function DashboardPage() {
     }
   };
 
-  if (authLoading) return <p>Loading...</p>;
-  if (!token) return <p>Please <Link href="/login" className="underline">login</Link> to view your dashboard.</p>;
+  if (authLoading) return (
+    <div className="space-y-4">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="card">
+          <div className="skeleton h-5 w-1/2 mb-3" />
+          <div className="skeleton h-3 w-full mb-2" />
+          <div className="skeleton h-3 w-3/4" />
+        </div>
+      ))}
+    </div>
+  );
+
+  if (!token) return (
+    <div className="empty-state mt-12">
+      <div className="icon">🔒</div>
+      <h3>Please sign in</h3>
+      <p>You need to log in to view your dashboard</p>
+      <Link href="/login" className="btn-primary mt-4 inline-flex">Sign In</Link>
+    </div>
+  );
 
   return (
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">📝 My Diaries</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">📝 My Diaries</h1>
+          <p className="text-slate-500 text-sm mt-0.5">
+            {diaries.length} {diaries.length === 1 ? "entry" : "entries"}
+          </p>
+        </div>
         <button onClick={openNewForm} className="btn-primary">
-          + New Diary
+          ✍️ New Entry
         </button>
       </div>
 
-      {/* Form Modal */}
+      {/* Create/Edit Form */}
       {showForm && (
-        <div className="card mb-6 border-2 border-blue-300">
-          <h2 className="font-semibold text-lg mb-3">
-            {editingId ? "Edit Diary" : "New Diary"}
+        <div className="card-highlight mb-6">
+          <h2 className="font-bold text-lg text-indigo-900 mb-4">
+            {editingId ? "✏️ Edit Diary" : "✍️ New Diary Entry"}
           </h2>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <input
-              value={formTitle}
-              onChange={(e) => setFormTitle(e.target.value)}
-              placeholder="Title"
-              className="input"
-              required
-            />
-            <textarea
-              value={formContent}
-              onChange={(e) => setFormContent(e.target.value)}
-              placeholder="Write your diary content..."
-              className="input min-h-[150px] resize-y"
-              required
-            />
-            <input
-              value={formTags}
-              onChange={(e) => setFormTags(e.target.value)}
-              placeholder="Tags (comma separated, e.g. daily, personal)"
-              className="input"
-            />
-            <label className="flex items-center gap-2 text-sm">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
+              <input
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+                placeholder="Give your entry a title..."
+                className="input"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Content</label>
+              <textarea
+                value={formContent}
+                onChange={(e) => setFormContent(e.target.value)}
+                placeholder="Write your thoughts, feelings, experiences..."
+                className="input min-h-[180px] resize-y"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Tags <span className="text-slate-400 font-normal">(comma separated)</span>
+              </label>
+              <input
+                value={formTags}
+                onChange={(e) => setFormTags(e.target.value)}
+                placeholder="e.g. daily, travel, thoughts"
+                className="input"
+              />
+            </div>
+
+            <label className="flex items-center gap-2.5 text-sm cursor-pointer bg-slate-50 p-3 rounded-lg border border-slate-200">
               <input
                 type="checkbox"
                 checked={formPublic}
                 onChange={(e) => setFormPublic(e.target.checked)}
+                className="w-4 h-4 accent-indigo-600"
               />
-              Make this diary public (others can read & comment)
+              <div>
+                <span className="font-medium text-slate-700">Make public</span>
+                <span className="text-slate-400 ml-1">(others can read &amp; comment)</span>
+              </div>
             </label>
 
             <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={formLoading}
-                className="btn-primary"
-              >
-                {formLoading
-                  ? "Saving..."
-                  : editingId
-                  ? "Update"
-                  : "Create"}
+              <button type="submit" disabled={formLoading} className="btn-primary">
+                {formLoading ? "Saving..." : editingId ? "💾 Update" : "🚀 Create"}
               </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="btn-ghost"
-              >
+              <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">
                 Cancel
               </button>
             </div>
-            {formError && <p className="text-red-600 text-sm">{formError}</p>}
+            {formError && (
+              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-200">
+                {formError}
+              </div>
+            )}
           </form>
         </div>
       )}
 
       {/* Diary List */}
       {loading ? (
-        <p>Loading diaries...</p>
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="card">
+              <div className="skeleton h-5 w-1/2 mb-3" />
+              <div className="skeleton h-3 w-full mb-2" />
+              <div className="skeleton h-3 w-3/4" />
+            </div>
+          ))}
+        </div>
       ) : error ? (
-        <p className="text-red-600">{error}</p>
+        <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-200">{error}</div>
       ) : diaries.length === 0 ? (
-        <div className="text-center py-12 text-zinc-500">
-          <p className="text-lg">No diaries yet.</p>
-          <p className="text-sm mt-1">Click &quot;+ New Diary&quot; to create your first entry!</p>
+        <div className="empty-state">
+          <div className="icon">📔</div>
+          <h3>Your diary is empty</h3>
+          <p>Click &quot;New Entry&quot; to start writing your first diary!</p>
         </div>
       ) : (
         <ul className="space-y-3">
           {diaries.map((d) => (
-            <li key={d._id} className="card">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
+            <li key={d._id} className="card group">
+              <div className="flex items-start justify-between gap-3">
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Link
                       href={`/diary/${d._id}`}
-                      className="font-semibold hover:underline"
+                      className="font-semibold text-slate-800 hover:text-indigo-600 transition-colors"
                     >
                       {d.title}
                     </Link>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${
-                        d.isPublic
-                          ? "bg-green-100 text-green-700"
-                          : "bg-zinc-200 text-zinc-600"
-                      }`}
-                    >
-                      {d.isPublic ? "Public" : "Private"}
+                    <span className={d.isPublic ? "badge-public" : "badge-private"}>
+                      {d.isPublic ? "🌐 Public" : "🔒 Private"}
                     </span>
                   </div>
-                  <p className="text-sm text-zinc-600 mt-1">
-                    {d.content.slice(0, 150)}
-                    {d.content.length > 150 ? "..." : ""}
+
+                  <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
+                    {d.content.slice(0, 180)}
+                    {d.content.length > 180 ? "..." : ""}
                   </p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs text-zinc-400">
-                      {new Date(d.createdAt).toLocaleString()}
+
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <span className="text-xs text-slate-400">
+                      📅 {new Date(d.createdAt).toLocaleDateString()}
                     </span>
                     {d.tags?.map((t) => (
-                      <span key={t} className="tag">
-                        {t}
-                      </span>
+                      <span key={t} className="tag">{t}</span>
                     ))}
                   </div>
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-1 ml-3">
+                <div className="flex gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => handleToggle(d._id)}
-                    className="btn-ghost text-xs"
+                    className="btn-ghost"
                     title={d.isPublic ? "Make Private" : "Make Public"}
                   >
                     {d.isPublic ? "🔒" : "🌐"}
                   </button>
                   <button
                     onClick={() => openEditForm(d)}
-                    className="btn-ghost text-xs"
+                    className="btn-ghost"
+                    title="Edit"
                   >
                     ✏️
                   </button>
                   <button
                     onClick={() => handleDelete(d._id)}
-                    className="btn-ghost text-xs text-red-500"
+                    className="btn-danger"
+                    title="Delete"
                   >
                     🗑️
                   </button>

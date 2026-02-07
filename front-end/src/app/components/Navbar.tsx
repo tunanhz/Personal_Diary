@@ -8,35 +8,60 @@ export default function Navbar() {
   const { user, token, logout } = useAuth();
 
   return (
-    <nav className="w-full border-b border-zinc-200 bg-white/80 backdrop-blur py-3 px-6 sticky top-0 z-50">
-      <div className="max-w-4xl mx-auto flex items-center justify-between">
-        <Link href="/" className="font-bold text-lg">
-          📓 Personal Diary
+    <nav className="w-full border-b border-slate-200 bg-white/90 backdrop-blur-md py-3 px-6 sticky top-0 z-50">
+      <div className="max-w-5xl mx-auto flex items-center justify-between">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2 group">
+          <span className="text-2xl">📓</span>
+          <span className="font-bold text-lg text-slate-800 group-hover:text-indigo-600 transition-colors">
+            Personal Diary
+          </span>
         </Link>
 
-        <div className="flex items-center gap-4 text-sm">
-          <Link href="/" className="hover:underline">
-            Public Feed
+        {/* Nav Links */}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/"
+            className="px-3 py-1.5 text-sm text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+          >
+            🌐 Explore
           </Link>
 
           {token && user ? (
             <>
-              <Link href="/dashboard" className="hover:underline font-medium">
-                Dashboard
+              <Link
+                href="/dashboard"
+                className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+              >
+                📝 My Diaries
               </Link>
-              <span className="text-zinc-400">|</span>
-              <span className="text-zinc-600">Hi, {user.username}</span>
-              <button onClick={logout} className="btn-ghost text-sm">
+
+              <div className="w-px h-5 bg-slate-200 mx-1" />
+
+              <div className="flex items-center gap-2">
+                <span className="avatar">{user.username.charAt(0)}</span>
+                <span className="text-sm font-medium text-slate-700 hidden sm:inline">
+                  {user.username}
+                </span>
+              </div>
+
+              <button
+                onClick={logout}
+                className="ml-1 px-3 py-1.5 text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+              >
                 Logout
               </button>
             </>
           ) : (
             <>
-              <Link href="/login" className="hover:underline">
-                Login
+              <Link
+                href="/login"
+                className="px-3 py-1.5 text-sm text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+              >
+                Sign In
               </Link>
               <Link href="/register" className="btn-primary text-sm">
-                Register
+                Get Started
               </Link>
             </>
           )}
