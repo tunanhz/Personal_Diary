@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -18,7 +18,15 @@ type Diary = {
   createdAt: string;
 };
 
-const EMOJIS = ["❤️", "😂", "😮", "😢", "👏"];
+const EMOJIS = ["\u2764\uFE0F", "\uD83D\uDE02", "\uD83D\uDE2E", "\uD83D\uDE22", "\uD83D\uDC4F"];
+const EMOJI_LABELS: Record<string, string> = {
+  "\u2764\uFE0F": "Love",
+  "\uD83D\uDE02": "Haha",
+  "\uD83D\uDE2E": "Wow",
+  "\uD83D\uDE22": "Sad",
+  "\uD83D\uDC4F": "Bravo",
+  "\uD83D\uDC4D": "Like",
+};
 
 export default function PublicFeedPage() {
   const { token, user } = useAuth();
@@ -27,7 +35,6 @@ export default function PublicFeedPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [openPicker, setOpenPicker] = useState<string | null>(null);
 
   const fetchPublic = async (p: number, q: string) => {
     setLoading(true);
@@ -62,19 +69,16 @@ export default function PublicFeedPage() {
         { method: "POST", body: JSON.stringify({ emoji }) },
         token
       );
-      // Cập nhật reactions trong state
       setDiaries((prev) =>
         prev.map((d) =>
           d._id === diaryId ? { ...d, reactions: res.data.reactions } : d
         )
       );
-      setOpenPicker(null);
     } catch (err: any) {
       alert(err.message);
     }
   };
 
-  // Tính summary reactions cho 1 diary
   const getReactionSummary = (reactions: Reaction[]) => {
     const summary: Record<string, number> = {};
     reactions?.forEach((r) => {
@@ -83,13 +87,11 @@ export default function PublicFeedPage() {
     return summary;
   };
 
-  // Tìm reaction hiện tại của user
   const getUserReaction = (reactions: Reaction[]) => {
     if (!user) return null;
     return reactions?.find((r) => r.user === user._id)?.emoji || null;
   };
 
-  // Scroll to diary anchor khi quay lại từ detail page
   useEffect(() => {
     if (!loading && window.location.hash) {
       const el = document.querySelector(window.location.hash);
@@ -101,30 +103,17 @@ export default function PublicFeedPage() {
 
   return (
     <div>
-      {/* Hero */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-slate-800">
-          📖 Explore Public Diaries
-        </h1>
-        <p className="text-slate-500 mt-2">
-          Read stories and thoughts shared by the community
-        </p>
+        <h1 className="text-3xl font-bold text-slate-800">{"\uD83D\uDCD6"} Explore Public Diaries</h1>
+        <p className="text-slate-500 mt-2">Read stories and thoughts shared by the community</p>
       </div>
 
-      {/* Search */}
-      <form onSubmit={handleSearch} className="flex gap-2 mb-8 max-w-xl mx-auto">
+      <form onSubmit={handleSearch} className="flex gap-0 mb-8 max-w-xl mx-auto">
         <div className="relative flex-1">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search diaries..."
-            className="input pl-9"
-          />
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{"\uD83D\uDD0D"}</span>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search diaries..." className="w-full h-11 pl-10 pr-4 border-1.5 border-slate-200 rounded-l-full bg-white text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
         </div>
-        <button type="submit" className="btn-primary">
-          Search
-        </button>
+        <button type="submit" className="h-11 px-6 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold rounded-r-full transition-colors">Search</button>
       </form>
 
       {loading ? (
@@ -142,135 +131,93 @@ export default function PublicFeedPage() {
         </div>
       ) : diaries.length === 0 ? (
         <div className="empty-state">
-          <div className="icon">📭</div>
+          <div className="icon">{"\uD83D\uDCED"}</div>
           <h3>No public diaries found</h3>
           <p>Be the first to share your story with the world!</p>
         </div>
       ) : (
         <>
           <ul className="divide-y divide-slate-200">
-            {diaries.map((d) => (
-              <li key={d._id} id={`diary-${d._id}`} className="py-4 first:pt-0 last:pb-0 group scroll-mt-24">
-                <div className="flex items-start gap-3">
-                  <span className="avatar mt-0.5" style={{ width: "2rem", height: "2rem", fontSize: "0.75rem", flexShrink: 0 }}>
-                    {d.author?.username?.charAt(0).toUpperCase()}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Link
-                        href={`/diary/${d._id}`}
-                        className="font-semibold text-slate-800 hover:text-indigo-600 transition-colors"
-                      >
-                        {d.title}
-                      </Link>
-                      <span className="text-xs text-slate-400">
-                        by <span className="font-medium text-slate-500">{d.author?.username}</span>
-                      </span>
-                      <span className="text-xs text-slate-300">•</span>
-                      <span className="text-xs text-slate-400">
-                        {new Date(d.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-                      {d.content.slice(0, 180)}
-                      {d.content.length > 180 ? "..." : ""}
-                    </p>
-                    {d.tags?.length > 0 && (
-                      <div className="flex gap-1 mt-1.5">
-                        {d.tags.map((t) => (
-                          <span key={t} className="tag">{t}</span>
-                        ))}
+            {diaries.map((d) => {
+              const summary = getReactionSummary(d.reactions);
+              const totalReactions = d.reactions?.length || 0;
+              const userEmoji = getUserReaction(d.reactions);
+              return (
+                <li key={d._id} id={`diary-${d._id}`} className="py-4 first:pt-0 last:pb-0 scroll-mt-24">
+                  <div className="flex items-start gap-3">
+                    <span className="avatar mt-0.5" style={{ width: "2rem", height: "2rem", fontSize: "0.75rem", flexShrink: 0 }}>
+                      {d.author?.username?.charAt(0).toUpperCase()}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Link href={`/diary/${d._id}`} className="font-semibold text-slate-800 hover:text-indigo-600 transition-colors">{d.title}</Link>
+                        <span className="text-xs text-slate-400">by <span className="font-medium text-slate-500">{d.author?.username}</span></span>
+                        <span className="text-xs text-slate-300">{"\u2022"}</span>
+                        <span className="text-xs text-slate-400">{new Date(d.createdAt).toLocaleDateString()}</span>
                       </div>
-                    )}
+                      <p className="text-sm text-slate-500 mt-1 leading-relaxed">{d.content.slice(0, 180)}{d.content.length > 180 ? "..." : ""}</p>
+                      {d.tags?.length > 0 && (
+                        <div className="flex gap-1 mt-1.5">
+                          {d.tags.map((t) => (<span key={t} className="tag">{t}</span>))}
+                        </div>
+                      )}
 
-                    {/* Reactions & Comment count */}
-                    <div className="flex items-center gap-3 mt-2 flex-wrap">
-                      {/* Reaction summary chips */}
-                      {(() => {
-                        const summary = getReactionSummary(d.reactions);
-                        const userEmoji = getUserReaction(d.reactions);
-                        return Object.entries(summary).map(([emoji, count]) => (
-                          <button
-                            key={emoji}
-                            onClick={() => handleReact(d._id, emoji)}
-                            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
-                              userEmoji === emoji
-                                ? "bg-indigo-50 border-indigo-300 text-indigo-700"
-                                : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
-                            }`}
-                          >
-                            <span>{emoji}</span>
-                            <span className="font-medium">{count}</span>
-                          </button>
-                        ));
-                      })()}
-
-                      {/* Add reaction button */}
-                      <div className="relative">
-                        <button
-                          onClick={() =>
-                            setOpenPicker(openPicker === d._id ? null : d._id)
-                          }
-                          className="inline-flex items-center text-xs px-2 py-0.5 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-500 transition-colors cursor-pointer"
-                          title="Add reaction"
-                        >
-                          😀+
-                        </button>
-                        {openPicker === d._id && (
-                          <div className="absolute bottom-full left-0 mb-1 flex gap-1 bg-white border border-slate-200 rounded-lg shadow-lg p-1.5 z-10">
-                            {EMOJIS.map((emoji) => (
-                              <button
-                                key={emoji}
-                                onClick={() => handleReact(d._id, emoji)}
-                                className="text-lg hover:scale-125 transition-transform cursor-pointer p-0.5"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
+                      {(totalReactions > 0 || d.commentCount > 0) && (
+                        <div className="flex items-center justify-between mt-2.5 text-xs text-slate-500">
+                          <div className="flex items-center gap-1">
+                            {totalReactions > 0 && (
+                              <>
+                                <div className="flex -space-x-0.5">
+                                  {Object.keys(summary).slice(0, 3).map((emoji) => (
+                                    <span key={emoji} className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-full border border-white shadow-sm text-[12px]">{emoji}</span>
+                                  ))}
+                                </div>
+                                <span className="ml-0.5">{totalReactions}</span>
+                              </>
+                            )}
                           </div>
-                        )}
+                          {d.commentCount > 0 && (
+                            <Link href={`/diary/${d._id}`} className="hover:underline">{d.commentCount} {d.commentCount === 1 ? "comment" : "comments"}</Link>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="border-t border-slate-200 mt-2" />
+
+                      <div className="flex items-center mt-0.5 -mx-1">
+                        <div className="relative flex-1 group/like">
+                          <button
+                            onClick={() => { if (userEmoji) { handleReact(d._id, userEmoji); } else { handleReact(d._id, "\u2764\uFE0F"); } }}
+                            className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-sm font-semibold transition-colors cursor-pointer ${userEmoji ? "text-indigo-600 hover:bg-indigo-50" : "text-slate-600 hover:bg-slate-100"}`}
+                          >
+                            <span className="text-base">{userEmoji || "\uD83D\uDC4D"}</span>
+                            {userEmoji ? (EMOJI_LABELS[userEmoji] || "Liked") : "Like"}
+                          </button>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 hidden group-hover/like:flex flex-col items-center z-30">
+                            <div className="flex items-center gap-1 bg-white rounded-full shadow-xl border border-slate-200 px-2 py-1.5">
+                              {EMOJIS.map((emoji) => (
+                                <button key={emoji} onClick={() => handleReact(d._id, emoji)} className="w-9 h-9 text-2xl flex items-center justify-center hover:scale-[1.4] hover:-translate-y-1.5 transition-all duration-200 cursor-pointer rounded-full" title={emoji}>{emoji}</button>
+                              ))}
+                            </div>
+                            <div className="h-2 w-full" />
+                          </div>
+                        </div>
+                        <Link href={`/diary/${d._id}`} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
+                          <span className="text-base">{"\uD83D\uDCAC"}</span>Comment
+                        </Link>
                       </div>
-
-                      {/* Divider */}
-                      <span className="text-slate-200">|</span>
-
-                      {/* Comment count */}
-                      <Link
-                        href={`/diary/${d._id}`}
-                        className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-500 transition-colors"
-                      >
-                        💬 <span className="font-medium">{d.commentCount || 0}</span>
-                        <span className="hidden sm:inline">
-                          {d.commentCount === 1 ? "comment" : "comments"}
-                        </span>
-                      </Link>
                     </div>
                   </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-3 mt-8">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="btn-secondary"
-              >
-                ← Previous
-              </button>
-              <span className="text-sm font-medium text-slate-600">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="btn-secondary"
-              >
-                Next →
-              </button>
+              <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="btn-secondary">{"\u2190"} Previous</button>
+              <span className="text-sm font-medium text-slate-600">Page {page} of {totalPages}</span>
+              <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="btn-secondary">Next {"\u2192"}</button>
             </div>
           )}
         </>

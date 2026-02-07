@@ -28,7 +28,16 @@ type Comment = {
   createdAt: string;
 };
 
-const EMOJIS = ["❤️", "😂", "😮", "😢", "👏"];
+const EMOJIS = ["\u2764\uFE0F", "\uD83D\uDE02", "\uD83D\uDE2E", "\uD83D\uDE22", "\uD83D\uDC4F"];
+const THUMBSUP = "\uD83D\uDC4D";
+const EMOJI_LABELS: Record<string, string> = {
+  "\u2764\uFE0F": "Love",
+  "\uD83D\uDE02": "Haha",
+  "\uD83D\uDE2E": "Wow",
+  "\uD83D\uDE22": "Sad",
+  "\uD83D\uDC4F": "Bravo",
+  "\uD83D\uDC4D": "Like",
+};
 
 export default function DiaryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -39,33 +48,27 @@ export default function DiaryDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Comment form
   const [commentText, setCommentText] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
 
-  // Reply state
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [replyLoading, setReplyLoading] = useState(false);
 
-  // Edit state
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [editLoading, setEditLoading] = useState(false);
 
-  // Emoji picker state
-  const [diaryEmojiOpen, setDiaryEmojiOpen] = useState(false);
   const [commentEmojiOpen, setCommentEmojiOpen] = useState<string | null>(null);
 
-  // Expanded replies
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
 
   const fetchDiary = useCallback(async () => {
     try {
       const res = await apiFetch(`/diaries/${id}`, {}, token);
       setDiary(res.data);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -85,7 +88,6 @@ export default function DiaryDetailPage() {
     fetchComments();
   }, [fetchDiary, fetchComments]);
 
-  // Post comment
   const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) return;
@@ -98,14 +100,13 @@ export default function DiaryDetailPage() {
       );
       setCommentText("");
       fetchComments();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : String(err));
     } finally {
       setCommentLoading(false);
     }
   };
 
-  // Post reply
   const handleReply = async (e: React.FormEvent, parentId: string) => {
     e.preventDefault();
     if (!replyText.trim()) return;
@@ -121,17 +122,15 @@ export default function DiaryDetailPage() {
       );
       setReplyText("");
       setReplyingTo(null);
-      // Auto-expand replies for this parent
       setExpandedReplies((prev) => new Set(prev).add(parentId));
       fetchComments();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : String(err));
     } finally {
       setReplyLoading(false);
     }
   };
 
-  // Edit comment
   const handleEditComment = async (commentId: string) => {
     if (!editText.trim()) return;
     setEditLoading(true);
@@ -144,14 +143,13 @@ export default function DiaryDetailPage() {
       setEditingCommentId(null);
       setEditText("");
       fetchComments();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : String(err));
     } finally {
       setEditLoading(false);
     }
   };
 
-  // Delete comment
   const handleDeleteComment = async (commentId: string) => {
     if (!confirm("Delete this comment?")) return;
     try {
@@ -161,12 +159,11 @@ export default function DiaryDetailPage() {
         token
       );
       fetchComments();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : String(err));
     }
   };
 
-  // React to diary
   const handleDiaryReact = async (emoji: string) => {
     if (!token) return alert("Please login to react!");
     try {
@@ -178,13 +175,11 @@ export default function DiaryDetailPage() {
       setDiary((prev) =>
         prev ? { ...prev, reactions: res.data.reactions } : prev
       );
-      setDiaryEmojiOpen(false);
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : String(err));
     }
   };
 
-  // React to comment
   const handleCommentReact = async (commentId: string, emoji: string) => {
     if (!token) return alert("Please login to react!");
     try {
@@ -201,21 +196,24 @@ export default function DiaryDetailPage() {
         });
       setComments(updateReactions);
       setCommentEmojiOpen(null);
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : String(err));
     }
   };
 
-  // Helpers
   const getReactionSummary = (reactions: { user: string; emoji: string }[]) => {
     const s: Record<string, number> = {};
-    reactions?.forEach((r) => { s[r.emoji] = (s[r.emoji] || 0) + 1; });
+    reactions?.forEach((r) => {
+      s[r.emoji] = (s[r.emoji] || 0) + 1;
+    });
     return s;
   };
+
   const getUserReaction = (reactions: { user: string; emoji: string }[]) => {
     if (!user) return null;
     return reactions?.find((r) => r.user === user._id)?.emoji || null;
   };
+
   const timeAgo = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -227,6 +225,7 @@ export default function DiaryDetailPage() {
     if (days < 7) return `${days}d`;
     return new Date(dateStr).toLocaleDateString();
   };
+
   const toggleReplies = (commentId: string) => {
     setExpandedReplies((prev) => {
       const next = new Set(prev);
@@ -236,31 +235,41 @@ export default function DiaryDetailPage() {
     });
   };
 
-  if (loading) return (
-    <div className="space-y-4 mt-4">
-      <div className="skeleton h-4 w-20" />
-      <div className="card">
-        <div className="skeleton h-7 w-2/3 mb-4" />
-        <div className="skeleton h-3 w-1/3 mb-6" />
-        <div className="skeleton h-3 w-full mb-2" />
-        <div className="skeleton h-3 w-full mb-2" />
-        <div className="skeleton h-3 w-3/4" />
+  // Suppress unused variable warning
+  void commentEmojiOpen;
+
+  if (loading)
+    return (
+      <div className="space-y-4 mt-4">
+        <div className="skeleton h-4 w-20" />
+        <div className="card">
+          <div className="skeleton h-7 w-2/3 mb-4" />
+          <div className="skeleton h-3 w-1/3 mb-6" />
+          <div className="skeleton h-3 w-full mb-2" />
+          <div className="skeleton h-3 w-full mb-2" />
+          <div className="skeleton h-3 w-3/4" />
+        </div>
       </div>
-    </div>
-  );
+    );
 
-  if (error) return (
-    <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-200 mt-4">{error}</div>
-  );
+  if (error)
+    return (
+      <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-200 mt-4">
+        {error}
+      </div>
+    );
 
-  if (!diary) return (
-    <div className="empty-state mt-12">
-      <div className="icon">🔍</div>
-      <h3>Diary not found</h3>
-      <p>This entry may have been deleted or made private.</p>
-      <Link href="/" className="btn-primary mt-4 inline-flex">Go Home</Link>
-    </div>
-  );
+  if (!diary)
+    return (
+      <div className="empty-state mt-12">
+        <div className="icon">{"\uD83D\uDD0D"}</div>
+        <h3>Diary not found</h3>
+        <p>This entry may have been deleted or made private.</p>
+        <Link href="/" className="btn-primary mt-4 inline-flex">
+          Go Home
+        </Link>
+      </div>
+    );
 
   const isOwner = user && diary.author?._id === user._id;
 
@@ -271,7 +280,7 @@ export default function DiaryDetailPage() {
         href={isOwner ? "/dashboard" : `/#diary-${diary._id}`}
         className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors mb-4"
       >
-        ← {isOwner ? "Back to Dashboard" : "Back to Explore"}
+        {"\u2190"} {isOwner ? "Back to Dashboard" : "Back to Explore"}
       </Link>
 
       {/* Article */}
@@ -279,27 +288,34 @@ export default function DiaryDetailPage() {
         <div className="flex items-start justify-between gap-3">
           <h1 className="text-2xl font-bold text-slate-800">{diary.title}</h1>
           <span className={diary.isPublic ? "badge-public" : "badge-private"}>
-            {diary.isPublic ? "🌐 Public" : "🔒 Private"}
+            {diary.isPublic ? "\uD83C\uDF10 Public" : "\uD83D\uDD12 Private"}
           </span>
         </div>
 
         <div className="flex items-center gap-3 mt-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <div className="avatar" style={{ width: 28, height: 28, fontSize: 12 }}>
+            <div
+              className="avatar"
+              style={{ width: 28, height: 28, fontSize: 12 }}
+            >
               {diary.author?.username?.charAt(0).toUpperCase()}
             </div>
-            <span className="text-sm font-medium text-slate-700">{diary.author?.username}</span>
+            <span className="text-sm font-medium text-slate-700">
+              {diary.author?.username}
+            </span>
           </div>
-          <span className="text-slate-300">•</span>
+          <span className="text-slate-300">{"\u2022"}</span>
           <span className="text-sm text-slate-400">
-            📅 {new Date(diary.createdAt).toLocaleDateString()}
+            {"\uD83D\uDCC5"} {new Date(diary.createdAt).toLocaleDateString()}
           </span>
           {diary.tags?.length > 0 && (
             <>
-              <span className="text-slate-300">•</span>
+              <span className="text-slate-300">{"\u2022"}</span>
               <div className="flex gap-1 flex-wrap">
                 {diary.tags.map((t) => (
-                  <span key={t} className="tag">{t}</span>
+                  <span key={t} className="tag">
+                    {t}
+                  </span>
                 ))}
               </div>
             </>
@@ -312,75 +328,123 @@ export default function DiaryDetailPage() {
           {diary.content}
         </div>
 
-        {/* Diary Reactions */}
-        {diary.isPublic && (
-          <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100 flex-wrap">
-            {(() => {
-              const summary = getReactionSummary(diary.reactions);
-              const userEmoji = getUserReaction(diary.reactions);
-              return Object.entries(summary).map(([emoji, count]) => (
-                <button
-                  key={emoji}
-                  onClick={() => handleDiaryReact(emoji)}
-                  className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
-                    userEmoji === emoji
-                      ? "bg-indigo-50 border-indigo-300 text-indigo-700"
-                      : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
-                  }`}
-                >
-                  <span>{emoji}</span>
-                  <span className="font-medium">{count}</span>
-                </button>
-              ));
-            })()}
-            <div className="relative">
-              <button
-                onClick={() => setDiaryEmojiOpen(!diaryEmojiOpen)}
-                className="inline-flex items-center text-xs px-2 py-0.5 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-500 transition-colors cursor-pointer"
-                title="Add reaction"
-              >
-                😀+
-              </button>
-              {diaryEmojiOpen && (
-                <div className="absolute bottom-full left-0 mb-1 flex gap-1 bg-white border border-slate-200 rounded-lg shadow-lg p-1.5 z-10">
-                  {EMOJIS.map((emoji) => (
+        {/* Diary Reactions - Facebook style */}
+        {diary.isPublic &&
+          (() => {
+            const summary = getReactionSummary(diary.reactions);
+            const totalReactions = diary.reactions?.length || 0;
+            const userEmoji = getUserReaction(diary.reactions);
+
+            return (
+              <>
+                {totalReactions > 0 && (
+                  <div className="flex items-center gap-1 mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500">
+                    <div className="flex -space-x-0.5">
+                      {Object.keys(summary)
+                        .slice(0, 3)
+                        .map((emoji) => (
+                          <span
+                            key={emoji}
+                            className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-full border border-white shadow-sm text-[12px]"
+                          >
+                            {emoji}
+                          </span>
+                        ))}
+                    </div>
+                    <span className="ml-0.5">{totalReactions}</span>
+                  </div>
+                )}
+
+                <div
+                  className={`border-t border-slate-200 ${totalReactions > 0 ? "mt-2" : "mt-4"}`}
+                />
+
+                <div className="flex items-center mt-0.5 -mx-1">
+                  <div className="relative flex-1 group/like">
                     <button
-                      key={emoji}
-                      onClick={() => handleDiaryReact(emoji)}
-                      className="text-lg hover:scale-125 transition-transform cursor-pointer p-0.5"
+                      onClick={() => {
+                        if (userEmoji) {
+                          handleDiaryReact(userEmoji);
+                        } else {
+                          handleDiaryReact(EMOJIS[0]);
+                        }
+                      }}
+                      className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-sm font-semibold transition-colors cursor-pointer ${
+                        userEmoji
+                          ? "text-indigo-600 hover:bg-indigo-50"
+                          : "text-slate-600 hover:bg-slate-100"
+                      }`}
                     >
-                      {emoji}
+                      <span className="text-base">
+                        {userEmoji || THUMBSUP}
+                      </span>
+                      {userEmoji ? (EMOJI_LABELS[userEmoji] || "Liked") : "Like"}
                     </button>
-                  ))}
+
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 hidden group-hover/like:flex flex-col items-center z-30">
+                      <div className="flex items-center gap-1 bg-white rounded-full shadow-xl border border-slate-200 px-2 py-1.5">
+                        {EMOJIS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            onClick={() => handleDiaryReact(emoji)}
+                            className="w-9 h-9 text-2xl flex items-center justify-center hover:scale-[1.4] hover:-translate-y-1.5 transition-all duration-200 cursor-pointer rounded-full"
+                            title={emoji}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="h-2 w-full" />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      document.getElementById("comment-input")?.focus()
+                    }
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    <span className="text-base">{"\uD83D\uDCAC"}</span>
+                    Comment
+                  </button>
                 </div>
-              )}
-            </div>
-          </div>
-        )}
+              </>
+            );
+          })()}
       </article>
 
       {/* Comments Section */}
       <section className="mt-8">
         <h2 className="text-lg font-bold text-slate-800 mb-4">
-          💬 Comments <span className="text-slate-400 font-normal">({comments.length})</span>
+          {"\uD83D\uDCAC"} Comments{" "}
+          <span className="text-slate-400 font-normal">
+            ({comments.length})
+          </span>
         </h2>
 
-        {/* Add comment form */}
         {token ? (
           diary.isPublic ? (
             <div className="flex gap-2 mb-6 items-start">
-              <div className="avatar" style={{ width: 32, height: 32, fontSize: 13, flexShrink: 0 }}>
+              <div
+                className="avatar"
+                style={{ width: 32, height: 32, fontSize: 13, flexShrink: 0 }}
+              >
                 {user?.username?.charAt(0).toUpperCase()}
               </div>
               <form onSubmit={handleComment} className="flex-1 flex gap-2">
                 <input
+                  id="comment-input"
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder="Write a comment..."
                   className="input flex-1 text-sm"
                   required
                 />
-                <button type="submit" disabled={commentLoading} className="btn-primary text-sm">
+                <button
+                  type="submit"
+                  disabled={commentLoading}
+                  className="btn-primary text-sm"
+                >
                   {commentLoading ? "..." : "Post"}
                 </button>
               </form>
@@ -388,23 +452,27 @@ export default function DiaryDetailPage() {
           ) : (
             isOwner && (
               <div className="bg-slate-50 text-slate-400 text-sm p-3 rounded-lg border border-slate-200 mb-4">
-                🔒 Comments are disabled for private diaries.
+                {"\uD83D\uDD12"} Comments are disabled for private diaries.
               </div>
             )
           )
         ) : (
           <div className="bg-indigo-50 text-sm p-3 rounded-lg border border-indigo-200 mb-4">
-            <Link href="/login" className="text-indigo-600 font-medium hover:underline">
+            <Link
+              href="/login"
+              className="text-indigo-600 font-medium hover:underline"
+            >
               Sign in
             </Link>{" "}
             <span className="text-indigo-400">to leave a comment.</span>
           </div>
         )}
 
-        {/* Comments list */}
         {comments.length === 0 ? (
           <div className="empty-state" style={{ padding: "2rem" }}>
-            <div className="icon" style={{ fontSize: "2rem" }}>💭</div>
+            <div className="icon" style={{ fontSize: "2rem" }}>
+              {"\uD83D\uDCAD"}
+            </div>
             <h3 style={{ fontSize: "1rem" }}>No comments yet</h3>
             <p>Be the first to share your thoughts!</p>
           </div>
@@ -420,15 +488,20 @@ export default function DiaryDetailPage() {
               return (
                 <li key={c._id}>
                   <div className="flex gap-2.5 items-start">
-                    {/* Avatar */}
-                    <div className="avatar" style={{ width: 36, height: 36, fontSize: 14, flexShrink: 0 }}>
+                    <div
+                      className="avatar"
+                      style={{
+                        width: 36,
+                        height: 36,
+                        fontSize: 14,
+                        flexShrink: 0,
+                      }}
+                    >
                       {c.author?.username?.charAt(0).toUpperCase()}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      {/* Comment bubble */}
                       {editingCommentId === c._id ? (
-                        /* Edit mode */
                         <div className="bg-slate-100 rounded-2xl px-3 py-2">
                           <input
                             value={editText}
@@ -457,74 +530,85 @@ export default function DiaryDetailPage() {
                           </div>
                         </div>
                       ) : (
-                        /* Display mode */
                         <div className="relative inline-block max-w-full">
                           <div className="bg-slate-100 rounded-2xl px-3 py-2">
                             <span className="font-semibold text-[13px] text-slate-800">
                               {c.author?.username}
                             </span>
-                            <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">{c.content}</p>
+                            <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">
+                              {c.content}
+                            </p>
                           </div>
 
-                          {/* Reaction badge floating */}
                           {totalReactions > 0 && (
                             <div className="absolute -bottom-2.5 right-2 flex items-center gap-0.5 bg-white rounded-full shadow-sm border border-slate-100 px-1.5 py-0.5 text-xs">
-                              {Object.entries(cSummary).slice(0, 3).map(([emoji]) => (
-                                <span key={emoji} style={{ fontSize: 11 }}>{emoji}</span>
-                              ))}
+                              {Object.entries(cSummary)
+                                .slice(0, 3)
+                                .map(([emoji]) => (
+                                  <span key={emoji} style={{ fontSize: 11 }}>
+                                    {emoji}
+                                  </span>
+                                ))}
                               {totalReactions > 1 && (
-                                <span className="text-slate-500 font-medium ml-0.5" style={{ fontSize: 11 }}>{totalReactions}</span>
+                                <span
+                                  className="text-slate-500 font-medium ml-0.5"
+                                  style={{ fontSize: 11 }}
+                                >
+                                  {totalReactions}
+                                </span>
                               )}
                             </div>
                           )}
                         </div>
                       )}
 
-                      {/* Action row: time · Like · Reply · Edit · Delete */}
                       {editingCommentId !== c._id && (
                         <div className="flex items-center gap-3 mt-1 ml-3 flex-wrap">
-                          <span className="text-xs text-slate-400">{timeAgo(c.createdAt)}</span>
+                          <span className="text-xs text-slate-400">
+                            {timeAgo(c.createdAt)}
+                          </span>
 
-                          {/* Like button with emoji picker */}
-                          <div className="relative">
+                          <div className="relative group/clike">
                             <button
                               onClick={() => {
                                 if (cUserEmoji) {
                                   handleCommentReact(c._id, cUserEmoji);
                                 } else {
-                                  setCommentEmojiOpen(commentEmojiOpen === c._id ? null : c._id);
+                                  handleCommentReact(c._id, EMOJIS[0]);
                                 }
                               }}
-                              onMouseEnter={() => setCommentEmojiOpen(c._id)}
                               className={`text-xs font-semibold cursor-pointer transition-colors ${
-                                cUserEmoji ? "text-indigo-600" : "text-slate-500 hover:text-slate-700"
+                                cUserEmoji
+                                  ? "text-indigo-600"
+                                  : "text-slate-500 hover:text-slate-700"
                               }`}
                             >
-                              {cUserEmoji ? cUserEmoji + " Liked" : "Like"}
+                              {cUserEmoji ? cUserEmoji + " " + (EMOJI_LABELS[cUserEmoji] || "Liked") : "Like"}
                             </button>
-                            {commentEmojiOpen === c._id && (
-                              <div
-                                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 flex gap-0.5 bg-white border border-slate-200 rounded-full shadow-lg px-2 py-1 z-20"
-                                onMouseLeave={() => setCommentEmojiOpen(null)}
-                              >
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 hidden group-hover/clike:flex flex-col items-center z-20">
+                              <div className="flex gap-0.5 bg-white border border-slate-200 rounded-full shadow-lg px-2 py-1">
                                 {EMOJIS.map((emoji) => (
                                   <button
                                     key={emoji}
-                                    onClick={() => handleCommentReact(c._id, emoji)}
+                                    onClick={() =>
+                                      handleCommentReact(c._id, emoji)
+                                    }
                                     className="text-lg hover:scale-125 transition-transform cursor-pointer px-0.5"
                                   >
                                     {emoji}
                                   </button>
                                 ))}
                               </div>
-                            )}
+                              <div className="h-1.5 w-full" />
+                            </div>
                           </div>
 
-                          {/* Reply */}
                           {token && diary.isPublic && (
                             <button
                               onClick={() => {
-                                setReplyingTo(replyingTo === c._id ? null : c._id);
+                                setReplyingTo(
+                                  replyingTo === c._id ? null : c._id
+                                );
                                 setReplyText("");
                               }}
                               className="text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
@@ -533,7 +617,6 @@ export default function DiaryDetailPage() {
                             </button>
                           )}
 
-                          {/* Edit (owner only) */}
                           {user && c.author?._id === user._id && (
                             <button
                               onClick={() => {
@@ -546,25 +629,26 @@ export default function DiaryDetailPage() {
                             </button>
                           )}
 
-                          {/* Delete (owner or diary owner) */}
-                          {user && (c.author?._id === user._id || isOwner) && (
-                            <button
-                              onClick={() => handleDeleteComment(c._id)}
-                              className="text-xs font-semibold text-slate-500 hover:text-red-500 cursor-pointer"
-                            >
-                              Delete
-                            </button>
-                          )}
+                          {user &&
+                            (c.author?._id === user._id || isOwner) && (
+                              <button
+                                onClick={() => handleDeleteComment(c._id)}
+                                className="text-xs font-semibold text-slate-500 hover:text-red-500 cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            )}
                         </div>
                       )}
 
-                      {/* "View N replies" toggle */}
+                      {/* Show replies toggle */}
                       {replyCount > 0 && !repliesExpanded && (
                         <button
                           onClick={() => toggleReplies(c._id)}
                           className="flex items-center gap-1 mt-2 ml-3 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
                         >
-                          <span>↳</span> View {replyCount} {replyCount === 1 ? "reply" : "replies"}
+                          <span>{"\u21B3"}</span> View {replyCount}{" "}
+                          {replyCount === 1 ? "reply" : "replies"}
                         </button>
                       )}
 
@@ -575,7 +659,7 @@ export default function DiaryDetailPage() {
                             onClick={() => toggleReplies(c._id)}
                             className="flex items-center gap-1 ml-3 mb-2 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
                           >
-                            <span>↑</span> Hide replies
+                            <span>{"\u2191"}</span> Hide replies
                           </button>
                           <ul className="space-y-3 ml-1">
                             {c.replies!.map((r) => {
@@ -584,33 +668,56 @@ export default function DiaryDetailPage() {
                               const rTotalReactions = r.reactions?.length || 0;
 
                               return (
-                                <li key={r._id} className="flex gap-2 items-start">
-                                  <div className="avatar" style={{ width: 28, height: 28, fontSize: 11, flexShrink: 0 }}>
-                                    {r.author?.username?.charAt(0).toUpperCase()}
+                                <li
+                                  key={r._id}
+                                  className="flex gap-2 items-start"
+                                >
+                                  <div
+                                    className="avatar"
+                                    style={{
+                                      width: 28,
+                                      height: 28,
+                                      fontSize: 11,
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {r.author?.username
+                                      ?.charAt(0)
+                                      .toUpperCase()}
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     {editingCommentId === r._id ? (
                                       <div className="bg-slate-100 rounded-2xl px-3 py-2">
                                         <input
                                           value={editText}
-                                          onChange={(e) => setEditText(e.target.value)}
+                                          onChange={(e) =>
+                                            setEditText(e.target.value)
+                                          }
                                           className="w-full bg-transparent text-sm outline-none text-slate-800"
                                           autoFocus
                                           onKeyDown={(e) => {
-                                            if (e.key === "Enter") handleEditComment(r._id);
-                                            if (e.key === "Escape") setEditingCommentId(null);
+                                            if (e.key === "Enter")
+                                              handleEditComment(r._id);
+                                            if (e.key === "Escape")
+                                              setEditingCommentId(null);
                                           }}
                                         />
                                         <div className="flex gap-2 mt-1">
                                           <button
-                                            onClick={() => handleEditComment(r._id)}
+                                            onClick={() =>
+                                              handleEditComment(r._id)
+                                            }
                                             disabled={editLoading}
                                             className="text-xs text-indigo-600 font-medium hover:underline cursor-pointer"
                                           >
-                                            {editLoading ? "Saving..." : "Save"}
+                                            {editLoading
+                                              ? "Saving..."
+                                              : "Save"}
                                           </button>
                                           <button
-                                            onClick={() => setEditingCommentId(null)}
+                                            onClick={() =>
+                                              setEditingCommentId(null)
+                                            }
                                             className="text-xs text-slate-400 hover:underline cursor-pointer"
                                           >
                                             Cancel
@@ -623,15 +730,29 @@ export default function DiaryDetailPage() {
                                           <span className="font-semibold text-[13px] text-slate-800">
                                             {r.author?.username}
                                           </span>
-                                          <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">{r.content}</p>
+                                          <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">
+                                            {r.content}
+                                          </p>
                                         </div>
                                         {rTotalReactions > 0 && (
                                           <div className="absolute -bottom-2 right-2 flex items-center gap-0.5 bg-white rounded-full shadow-sm border border-slate-100 px-1 py-0.5 text-xs">
-                                            {Object.entries(rSummary).slice(0, 3).map(([emoji]) => (
-                                              <span key={emoji} style={{ fontSize: 10 }}>{emoji}</span>
-                                            ))}
+                                            {Object.entries(rSummary)
+                                              .slice(0, 3)
+                                              .map(([emoji]) => (
+                                                <span
+                                                  key={emoji}
+                                                  style={{ fontSize: 10 }}
+                                                >
+                                                  {emoji}
+                                                </span>
+                                              ))}
                                             {rTotalReactions > 1 && (
-                                              <span className="text-slate-500 font-medium" style={{ fontSize: 10 }}>{rTotalReactions}</span>
+                                              <span
+                                                className="text-slate-500 font-medium"
+                                                style={{ fontSize: 10 }}
+                                              >
+                                                {rTotalReactions}
+                                              </span>
                                             )}
                                           </div>
                                         )}
@@ -640,59 +761,78 @@ export default function DiaryDetailPage() {
 
                                     {editingCommentId !== r._id && (
                                       <div className="flex items-center gap-3 mt-1 ml-3 flex-wrap">
-                                        <span className="text-xs text-slate-400">{timeAgo(r.createdAt)}</span>
-                                        <div className="relative">
+                                        <span className="text-xs text-slate-400">
+                                          {timeAgo(r.createdAt)}
+                                        </span>
+                                        <div className="relative group/rlike">
                                           <button
                                             onClick={() => {
                                               if (rUserEmoji) {
-                                                handleCommentReact(r._id, rUserEmoji);
+                                                handleCommentReact(
+                                                  r._id,
+                                                  rUserEmoji
+                                                );
                                               } else {
-                                                setCommentEmojiOpen(commentEmojiOpen === r._id ? null : r._id);
+                                                handleCommentReact(
+                                                  r._id,
+                                                  EMOJIS[0]
+                                                );
                                               }
                                             }}
-                                            onMouseEnter={() => setCommentEmojiOpen(r._id)}
                                             className={`text-xs font-semibold cursor-pointer transition-colors ${
-                                              rUserEmoji ? "text-indigo-600" : "text-slate-500 hover:text-slate-700"
+                                              rUserEmoji
+                                                ? "text-indigo-600"
+                                                : "text-slate-500 hover:text-slate-700"
                                             }`}
                                           >
-                                            {rUserEmoji ? rUserEmoji + " Liked" : "Like"}
+                                            {rUserEmoji
+                                              ? rUserEmoji + " " + (EMOJI_LABELS[rUserEmoji] || "Liked")
+                                              : "Like"}
                                           </button>
-                                          {commentEmojiOpen === r._id && (
-                                            <div
-                                              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 flex gap-0.5 bg-white border border-slate-200 rounded-full shadow-lg px-2 py-1 z-20"
-                                              onMouseLeave={() => setCommentEmojiOpen(null)}
-                                            >
+                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 hidden group-hover/rlike:flex flex-col items-center z-20">
+                                            <div className="flex gap-0.5 bg-white border border-slate-200 rounded-full shadow-lg px-2 py-1">
                                               {EMOJIS.map((emoji) => (
                                                 <button
                                                   key={emoji}
-                                                  onClick={() => handleCommentReact(r._id, emoji)}
+                                                  onClick={() =>
+                                                    handleCommentReact(
+                                                      r._id,
+                                                      emoji
+                                                    )
+                                                  }
                                                   className="text-lg hover:scale-125 transition-transform cursor-pointer px-0.5"
                                                 >
                                                   {emoji}
                                                 </button>
                                               ))}
                                             </div>
-                                          )}
+                                            <div className="h-1.5 w-full" />
+                                          </div>
                                         </div>
-                                        {user && r.author?._id === user._id && (
-                                          <button
-                                            onClick={() => {
-                                              setEditingCommentId(r._id);
-                                              setEditText(r.content);
-                                            }}
-                                            className="text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
-                                          >
-                                            Edit
-                                          </button>
-                                        )}
-                                        {user && (r.author?._id === user._id || isOwner) && (
-                                          <button
-                                            onClick={() => handleDeleteComment(r._id)}
-                                            className="text-xs font-semibold text-slate-500 hover:text-red-500 cursor-pointer"
-                                          >
-                                            Delete
-                                          </button>
-                                        )}
+                                        {user &&
+                                          r.author?._id === user._id && (
+                                            <button
+                                              onClick={() => {
+                                                setEditingCommentId(r._id);
+                                                setEditText(r.content);
+                                              }}
+                                              className="text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
+                                            >
+                                              Edit
+                                            </button>
+                                          )}
+                                        {user &&
+                                          (r.author?._id === user._id ||
+                                            isOwner) && (
+                                            <button
+                                              onClick={() =>
+                                                handleDeleteComment(r._id)
+                                              }
+                                              className="text-xs font-semibold text-slate-500 hover:text-red-500 cursor-pointer"
+                                            >
+                                              Delete
+                                            </button>
+                                          )}
                                       </div>
                                     )}
                                   </div>
@@ -706,10 +846,21 @@ export default function DiaryDetailPage() {
                       {/* Reply form */}
                       {replyingTo === c._id && (
                         <div className="flex gap-2 items-start mt-2 ml-1">
-                          <div className="avatar" style={{ width: 24, height: 24, fontSize: 10, flexShrink: 0 }}>
+                          <div
+                            className="avatar"
+                            style={{
+                              width: 24,
+                              height: 24,
+                              fontSize: 10,
+                              flexShrink: 0,
+                            }}
+                          >
                             {user?.username?.charAt(0).toUpperCase()}
                           </div>
-                          <form onSubmit={(e) => handleReply(e, c._id)} className="flex-1 flex gap-2">
+                          <form
+                            onSubmit={(e) => handleReply(e, c._id)}
+                            className="flex-1 flex gap-2"
+                          >
                             <input
                               value={replyText}
                               onChange={(e) => setReplyText(e.target.value)}
@@ -718,7 +869,11 @@ export default function DiaryDetailPage() {
                               required
                               autoFocus
                             />
-                            <button type="submit" disabled={replyLoading} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer">
+                            <button
+                              type="submit"
+                              disabled={replyLoading}
+                              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                            >
                               {replyLoading ? "..." : "Send"}
                             </button>
                           </form>
