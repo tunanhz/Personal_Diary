@@ -89,6 +89,16 @@ export default function PublicFeedPage() {
     return reactions?.find((r) => r.user === user._id)?.emoji || null;
   };
 
+  // Scroll to diary anchor khi quay lại từ detail page
+  useEffect(() => {
+    if (!loading && window.location.hash) {
+      const el = document.querySelector(window.location.hash);
+      if (el) {
+        setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+      }
+    }
+  }, [loading]);
+
   return (
     <div>
       {/* Hero */}
@@ -140,7 +150,7 @@ export default function PublicFeedPage() {
         <>
           <ul className="divide-y divide-slate-200">
             {diaries.map((d) => (
-              <li key={d._id} className="py-4 first:pt-0 last:pb-0 group">
+              <li key={d._id} id={`diary-${d._id}`} className="py-4 first:pt-0 last:pb-0 group scroll-mt-24">
                 <div className="flex items-start gap-3">
                   <span className="avatar mt-0.5" style={{ width: "2rem", height: "2rem", fontSize: "0.75rem", flexShrink: 0 }}>
                     {d.author?.username?.charAt(0).toUpperCase()}

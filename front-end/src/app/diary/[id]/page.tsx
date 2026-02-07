@@ -129,10 +129,10 @@ export default function DiaryDetailPage() {
     <div>
       {/* Back link */}
       <Link
-        href={isOwner ? "/dashboard" : "/"}
+        href={isOwner ? "/dashboard" : `/#diary-${diary._id}`}
         className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors mb-4"
       >
-        ← {isOwner ? "Back to Dashboard" : "Back to Feed"}
+        ← {isOwner ? "Back to Dashboard" : "Back to Explore"}
       </Link>
 
       {/* Article */}
