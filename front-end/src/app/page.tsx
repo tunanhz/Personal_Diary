@@ -74,12 +74,15 @@ export default function PublicFeedPage() {
       </form>
 
       {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="card">
-              <div className="skeleton h-5 w-2/3 mb-3" />
-              <div className="skeleton h-3 w-full mb-2" />
-              <div className="skeleton h-3 w-4/5" />
+        <div className="divide-y divide-slate-200">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="py-4 flex items-start gap-3">
+              <div className="skeleton rounded-full" style={{ width: "2rem", height: "2rem", flexShrink: 0 }} />
+              <div className="flex-1">
+                <div className="skeleton h-4 w-1/2 mb-2" />
+                <div className="skeleton h-3 w-full mb-1.5" />
+                <div className="skeleton h-3 w-3/4" />
+              </div>
             </div>
           ))}
         </div>
@@ -91,47 +94,45 @@ export default function PublicFeedPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <ul className="divide-y divide-slate-200">
             {diaries.map((d) => (
-              <Link
-                key={d._id}
-                href={`/diary/${d._id}`}
-                className="card group cursor-pointer"
-              >
-                <h2 className="font-semibold text-lg text-slate-800 group-hover:text-indigo-600 transition-colors">
-                  {d.title}
-                </h2>
-                <p className="text-slate-500 text-sm mt-2 leading-relaxed">
-                  {d.content.slice(0, 150)}
-                  {d.content.length > 150 ? "..." : ""}
-                </p>
-
-                <div className="divider" />
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="avatar text-xs" style={{ width: "1.5rem", height: "1.5rem", fontSize: "0.65rem" }}>
-                      {d.author?.username?.charAt(0)}
-                    </span>
-                    <span className="text-xs font-medium text-slate-600">
-                      {d.author?.username}
-                    </span>
-                  </div>
-                  <span className="text-xs text-slate-400">
-                    {new Date(d.createdAt).toLocaleDateString()}
+              <li key={d._id} className="py-4 first:pt-0 last:pb-0 group">
+                <div className="flex items-start gap-3">
+                  <span className="avatar mt-0.5" style={{ width: "2rem", height: "2rem", fontSize: "0.75rem", flexShrink: 0 }}>
+                    {d.author?.username?.charAt(0).toUpperCase()}
                   </span>
-                </div>
-
-                {d.tags?.length > 0 && (
-                  <div className="flex gap-1 mt-2">
-                    {d.tags.map((t) => (
-                      <span key={t} className="tag">{t}</span>
-                    ))}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Link
+                        href={`/diary/${d._id}`}
+                        className="font-semibold text-slate-800 hover:text-indigo-600 transition-colors"
+                      >
+                        {d.title}
+                      </Link>
+                      <span className="text-xs text-slate-400">
+                        by <span className="font-medium text-slate-500">{d.author?.username}</span>
+                      </span>
+                      <span className="text-xs text-slate-300">•</span>
+                      <span className="text-xs text-slate-400">
+                        {new Date(d.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+                      {d.content.slice(0, 180)}
+                      {d.content.length > 180 ? "..." : ""}
+                    </p>
+                    {d.tags?.length > 0 && (
+                      <div className="flex gap-1 mt-1.5">
+                        {d.tags.map((t) => (
+                          <span key={t} className="tag">{t}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </Link>
+                </div>
+              </li>
             ))}
-          </div>
+          </ul>
 
           {/* Pagination */}
           {totalPages > 1 && (

@@ -130,11 +130,11 @@ export default function DashboardPage() {
   };
 
   if (authLoading) return (
-    <div className="space-y-4">
+    <div className="divide-y divide-slate-200">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="card">
-          <div className="skeleton h-5 w-1/2 mb-3" />
-          <div className="skeleton h-3 w-full mb-2" />
+        <div key={i} className="py-4">
+          <div className="skeleton h-4 w-1/2 mb-2" />
+          <div className="skeleton h-3 w-full mb-1.5" />
           <div className="skeleton h-3 w-3/4" />
         </div>
       ))}
@@ -236,11 +236,11 @@ export default function DashboardPage() {
 
       {/* Diary List */}
       {loading ? (
-        <div className="space-y-4">
+        <div className="divide-y divide-slate-200">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="card">
-              <div className="skeleton h-5 w-1/2 mb-3" />
-              <div className="skeleton h-3 w-full mb-2" />
+            <div key={i} className="py-4">
+              <div className="skeleton h-4 w-1/2 mb-2" />
+              <div className="skeleton h-3 w-full mb-1.5" />
               <div className="skeleton h-3 w-3/4" />
             </div>
           ))}
@@ -254,9 +254,9 @@ export default function DashboardPage() {
           <p>Click &quot;New Entry&quot; to start writing your first diary!</p>
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y divide-slate-200">
           {diaries.map((d) => (
-            <li key={d._id} className="card group">
+            <li key={d._id} className="py-4 first:pt-0 last:pb-0 group">
               <div className="flex items-start justify-between gap-3">
                 {/* Content */}
                 <div className="flex-1 min-w-0">
@@ -272,12 +272,12 @@ export default function DashboardPage() {
                     </span>
                   </div>
 
-                  <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
+                  <p className="text-sm text-slate-500 mt-1 leading-relaxed">
                     {d.content.slice(0, 180)}
                     {d.content.length > 180 ? "..." : ""}
                   </p>
 
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     <span className="text-xs text-slate-400">
                       📅 {new Date(d.createdAt).toLocaleDateString()}
                     </span>
