@@ -246,9 +246,61 @@ const reactToComment = async (req, res, next) => {
   }
 };
 
+// @desc    Update a comment
+// @route   PUT /api/diaries/:diaryId/comments/:commentId
+// @access  Private (chủ comment only)
+const updateComment = async (req, res, next) => {
+  try {
+    const { content } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Comment content is required",
+      });
+    }
+
+    const comment = await Comment.findById(req.params.commentId);
+
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: "Comment not found",
+      });
+    }
+
+    if (comment.diary.toString() !== req.params.diaryId) {
+      return res.status(400).json({
+        success: false,
+        message: "Comment does not belong to this diary",
+      });
+    }
+
+    // Chỉ chủ comment mới được sửa
+    if (comment.author.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to edit this comment",
+      });
+    }
+
+    comment.content = content.trim();
+    await comment.save();
+    await comment.populate("author", "username");
+
+    res.status(200).json({
+      success: true,
+      data: comment,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   addComment,
   getComments,
   deleteComment,
   reactToComment,
+  updateComment,
 };

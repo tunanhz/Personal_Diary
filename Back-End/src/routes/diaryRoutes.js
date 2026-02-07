@@ -15,6 +15,7 @@ const {
   getComments,
   deleteComment,
   reactToComment,
+  updateComment,
 } = require("../controllers/commentController");
 const { protect, optionalAuth } = require("../middlewares/auth");
 
@@ -43,6 +44,8 @@ router.get("/:diaryId/comments", optionalAuth, getComments);
 router.post("/:diaryId/comments", protect, addComment);
 // Xóa comment (phải đăng nhập, chủ comment hoặc chủ diary)
 router.delete("/:diaryId/comments/:commentId", protect, deleteComment);
+// Sửa comment (phải đăng nhập, chủ comment only)
+router.put("/:diaryId/comments/:commentId", protect, updateComment);
 // React to a comment (toggle emoji)
 router.post("/:diaryId/comments/:commentId/react", protect, reactToComment);
 
