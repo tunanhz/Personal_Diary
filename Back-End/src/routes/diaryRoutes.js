@@ -8,6 +8,7 @@ const {
   deleteDiary,
   toggleVisibility,
   getPublicDiaries,
+  reactToDiary,
 } = require("../controllers/diaryController");
 const {
   addComment,
@@ -27,6 +28,9 @@ router.get("/my", protect, getMyDiaries);
 router.put("/:id", protect, updateDiary);
 router.delete("/:id", protect, deleteDiary);
 router.patch("/:id/toggle-visibility", protect, toggleVisibility);
+
+// React to a diary (toggle emoji)
+router.post("/:id/react", protect, reactToDiary);
 
 // Xem chi tiết diary (dùng optionalAuth để biết ai đang xem)
 router.get("/:id", optionalAuth, getDiaryById);

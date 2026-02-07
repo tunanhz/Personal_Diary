@@ -246,14 +246,105 @@ const getPublicDiaries = async (req, res, next) => {
       Diary.countDocuments(filter),
     ]);
 
+    // Đếm comments cho mỗi diary
+    const diaryIds = diaries.map((d) => d._id);
+    const commentCounts = await Comment.aggregate([
+      { $match: { diary: { $in: diaryIds } } },
+      { $group: { _id: "$diary", count: { $sum: 1 } } },
+    ]);
+    const countMap = {};
+    commentCounts.forEach((c) => {
+      countMap[c._id.toString()] = c.count;
+    });
+
+    const data = diaries.map((d) => {
+      const obj = d.toObject();
+      obj.commentCount = countMap[d._id.toString()] || 0;
+      return obj;
+    });
+
     res.status(200).json({
       success: true,
-      data: diaries,
+      data,
       pagination: {
         page,
         limit,
         total,
         pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    React to a public diary (toggle emoji)
+// @route   POST /api/diaries/:id/react
+// @access  Private
+const reactToDiary = async (req, res, next) => {
+  try {
+    const { emoji } = req.body;
+    const allowedEmojis = ["❤️", "😂", "😮", "😢", "👏"];
+
+    if (!emoji || !allowedEmojis.includes(emoji)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid emoji. Allowed: ${allowedEmojis.join(" ")}`,
+      });
+    }
+
+    const diary = await Diary.findById(req.params.id);
+
+    if (!diary) {
+      return res.status(404).json({
+        success: false,
+        message: "Diary not found",
+      });
+    }
+
+    if (!diary.isPublic) {
+      return res.status(403).json({
+        success: false,
+        message: "Cannot react to a private diary",
+      });
+    }
+
+    const userId = req.user._id.toString();
+
+    // Kiểm tra user đã react emoji này chưa
+    const existingIndex = diary.reactions.findIndex(
+      (r) => r.user.toString() === userId && r.emoji === emoji
+    );
+
+    if (existingIndex > -1) {
+      // Nếu đã react emoji này → bỏ react (toggle off)
+      diary.reactions.splice(existingIndex, 1);
+    } else {
+      // Xóa reaction cũ của user (nếu có) rồi thêm mới
+      diary.reactions = diary.reactions.filter(
+        (r) => r.user.toString() !== userId
+      );
+      diary.reactions.push({ user: req.user._id, emoji });
+    }
+
+    await diary.save();
+
+    // Tính lại summary
+    const reactionSummary = {};
+    diary.reactions.forEach((r) => {
+      reactionSummary[r.emoji] = (reactionSummary[r.emoji] || 0) + 1;
+    });
+
+    const userReaction = diary.reactions.find(
+      (r) => r.user.toString() === userId
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        reactions: diary.reactions,
+        reactionSummary,
+        userReaction: userReaction ? userReaction.emoji : null,
       },
     });
   } catch (error) {
@@ -269,4 +360,5 @@ module.exports = {
   deleteDiary,
   toggleVisibility,
   getPublicDiaries,
+  reactToDiary,
 };

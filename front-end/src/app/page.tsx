@@ -3,6 +3,9 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "../lib/api";
+import { useAuth } from "../context/AuthProvider";
+
+type Reaction = { user: string; emoji: string };
 
 type Diary = {
   _id: string;
@@ -10,15 +13,21 @@ type Diary = {
   content: string;
   author: { _id: string; username: string };
   tags: string[];
+  reactions: Reaction[];
+  commentCount: number;
   createdAt: string;
 };
 
+const EMOJIS = ["❤️", "😂", "😮", "😢", "👏"];
+
 export default function PublicFeedPage() {
+  const { token, user } = useAuth();
   const [diaries, setDiaries] = useState<Diary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [openPicker, setOpenPicker] = useState<string | null>(null);
 
   const fetchPublic = async (p: number, q: string) => {
     setLoading(true);
@@ -43,6 +52,41 @@ export default function PublicFeedPage() {
     e.preventDefault();
     setPage(1);
     fetchPublic(1, search);
+  };
+
+  const handleReact = async (diaryId: string, emoji: string) => {
+    if (!token) return alert("Please login to react!");
+    try {
+      const res = await apiFetch(
+        `/diaries/${diaryId}/react`,
+        { method: "POST", body: JSON.stringify({ emoji }) },
+        token
+      );
+      // Cập nhật reactions trong state
+      setDiaries((prev) =>
+        prev.map((d) =>
+          d._id === diaryId ? { ...d, reactions: res.data.reactions } : d
+        )
+      );
+      setOpenPicker(null);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  // Tính summary reactions cho 1 diary
+  const getReactionSummary = (reactions: Reaction[]) => {
+    const summary: Record<string, number> = {};
+    reactions?.forEach((r) => {
+      summary[r.emoji] = (summary[r.emoji] || 0) + 1;
+    });
+    return summary;
+  };
+
+  // Tìm reaction hiện tại của user
+  const getUserReaction = (reactions: Reaction[]) => {
+    if (!user) return null;
+    return reactions?.find((r) => r.user === user._id)?.emoji || null;
   };
 
   return (
@@ -128,6 +172,69 @@ export default function PublicFeedPage() {
                         ))}
                       </div>
                     )}
+
+                    {/* Reactions & Comment count */}
+                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                      {/* Reaction summary chips */}
+                      {(() => {
+                        const summary = getReactionSummary(d.reactions);
+                        const userEmoji = getUserReaction(d.reactions);
+                        return Object.entries(summary).map(([emoji, count]) => (
+                          <button
+                            key={emoji}
+                            onClick={() => handleReact(d._id, emoji)}
+                            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
+                              userEmoji === emoji
+                                ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                                : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+                            }`}
+                          >
+                            <span>{emoji}</span>
+                            <span className="font-medium">{count}</span>
+                          </button>
+                        ));
+                      })()}
+
+                      {/* Add reaction button */}
+                      <div className="relative">
+                        <button
+                          onClick={() =>
+                            setOpenPicker(openPicker === d._id ? null : d._id)
+                          }
+                          className="inline-flex items-center text-xs px-2 py-0.5 rounded-full border border-dashed border-slate-300 text-slate-400 hover:border-indigo-400 hover:text-indigo-500 transition-colors cursor-pointer"
+                          title="Add reaction"
+                        >
+                          😀+
+                        </button>
+                        {openPicker === d._id && (
+                          <div className="absolute bottom-full left-0 mb-1 flex gap-1 bg-white border border-slate-200 rounded-lg shadow-lg p-1.5 z-10">
+                            {EMOJIS.map((emoji) => (
+                              <button
+                                key={emoji}
+                                onClick={() => handleReact(d._id, emoji)}
+                                className="text-lg hover:scale-125 transition-transform cursor-pointer p-0.5"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Divider */}
+                      <span className="text-slate-200">|</span>
+
+                      {/* Comment count */}
+                      <Link
+                        href={`/diary/${d._id}`}
+                        className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-500 transition-colors"
+                      >
+                        💬 <span className="font-medium">{d.commentCount || 0}</span>
+                        <span className="hidden sm:inline">
+                          {d.commentCount === 1 ? "comment" : "comments"}
+                        </span>
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </li>
