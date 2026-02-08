@@ -1,14 +1,14 @@
-const Comment = require("../models/Comment");
+﻿const Comment = require("../models/Comment");
 const Diary = require("../models/Diary");
 
 // @desc    Add comment to a public diary
 // @route   POST /api/diaries/:diaryId/comments
-// @access  Private (phải đăng nhập mới được comment)
+// @access  Private (pháº£i Ä‘Äƒng nháº­p má»›i Ä‘Æ°á»£c comment)
 const addComment = async (req, res, next) => {
   try {
     const { content, parentComment } = req.body;
 
-    // Kiểm tra diary tồn tại và là public
+    // Kiá»ƒm tra diary tá»“n táº¡i vÃ  lÃ  public
     const diary = await Diary.findById(req.params.diaryId);
 
     if (!diary) {
@@ -25,7 +25,7 @@ const addComment = async (req, res, next) => {
       });
     }
 
-    // Nếu reply, kiểm tra parent comment tồn tại
+    // Náº¿u reply, kiá»ƒm tra parent comment tá»“n táº¡i
     if (parentComment) {
       const parent = await Comment.findById(parentComment);
       if (!parent || parent.diary.toString() !== req.params.diaryId) {
@@ -34,7 +34,7 @@ const addComment = async (req, res, next) => {
           message: "Parent comment not found in this diary",
         });
       }
-      // Không cho reply vào reply (chỉ 1 cấp)
+      // KhÃ´ng cho reply vÃ o reply (chá»‰ 1 cáº¥p)
       if (parent.parentComment) {
         return res.status(400).json({
           success: false,
@@ -50,8 +50,8 @@ const addComment = async (req, res, next) => {
       parentComment: parentComment || null,
     });
 
-    // Populate author trước khi trả về
-    await comment.populate("author", "username");
+    // Populate author trÆ°á»›c khi tráº£ vá»
+    await comment.populate("author", "username fullName avatar");
 
     res.status(201).json({
       success: true,
@@ -64,7 +64,7 @@ const addComment = async (req, res, next) => {
 
 // @desc    Get all comments of a diary
 // @route   GET /api/diaries/:diaryId/comments
-// @access  Public (nếu diary public)
+// @access  Public (náº¿u diary public)
 const getComments = async (req, res, next) => {
   try {
     const diary = await Diary.findById(req.params.diaryId);
@@ -76,7 +76,7 @@ const getComments = async (req, res, next) => {
       });
     }
 
-    // Nếu diary private, chỉ chủ sở hữu mới xem được comments
+    // Náº¿u diary private, chá»‰ chá»§ sá»Ÿ há»¯u má»›i xem Ä‘Æ°á»£c comments
     if (!diary.isPublic) {
       if (!req.user || diary.author.toString() !== req.user._id.toString()) {
         return res.status(403).json({
@@ -95,20 +95,20 @@ const getComments = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate("author", "username"),
+        .populate("author", "username fullName avatar"),
       Comment.countDocuments({ diary: req.params.diaryId, parentComment: null }),
     ]);
 
-    // Lấy replies cho tất cả parent comments
+    // Láº¥y replies cho táº¥t cáº£ parent comments
     const parentIds = comments.map((c) => c._id);
     const replies = await Comment.find({
       diary: req.params.diaryId,
       parentComment: { $in: parentIds },
     })
       .sort({ createdAt: 1 })
-      .populate("author", "username");
+      .populate("author", "username fullName avatar");
 
-    // Gom replies vào parent
+    // Gom replies vÃ o parent
     const replyMap = {};
     replies.forEach((r) => {
       const pid = r.parentComment.toString();
@@ -139,7 +139,7 @@ const getComments = async (req, res, next) => {
 
 // @desc    Delete a comment
 // @route   DELETE /api/diaries/:diaryId/comments/:commentId
-// @access  Private (chủ comment hoặc chủ diary)
+// @access  Private (chá»§ comment hoáº·c chá»§ diary)
 const deleteComment = async (req, res, next) => {
   try {
     const comment = await Comment.findById(req.params.commentId);
@@ -151,7 +151,7 @@ const deleteComment = async (req, res, next) => {
       });
     }
 
-    // Kiểm tra comment thuộc diary này không
+    // Kiá»ƒm tra comment thuá»™c diary nÃ y khÃ´ng
     if (comment.diary.toString() !== req.params.diaryId) {
       return res.status(400).json({
         success: false,
@@ -159,7 +159,7 @@ const deleteComment = async (req, res, next) => {
       });
     }
 
-    // Chỉ chủ comment hoặc chủ diary mới được xóa
+    // Chá»‰ chá»§ comment hoáº·c chá»§ diary má»›i Ä‘Æ°á»£c xÃ³a
     const diary = await Diary.findById(req.params.diaryId);
     const isCommentOwner =
       comment.author.toString() === req.user._id.toString();
@@ -175,7 +175,7 @@ const deleteComment = async (req, res, next) => {
 
     await comment.deleteOne();
 
-    // Xóa tất cả replies nếu đây là parent comment
+    // XÃ³a táº¥t cáº£ replies náº¿u Ä‘Ã¢y lÃ  parent comment
     await Comment.deleteMany({ parentComment: req.params.commentId });
 
     res.status(200).json({
@@ -193,7 +193,7 @@ const deleteComment = async (req, res, next) => {
 const reactToComment = async (req, res, next) => {
   try {
     const { emoji } = req.body;
-    const allowedEmojis = ["❤️", "😂", "😮", "😢", "👏"];
+    const allowedEmojis = ["â¤ï¸", "ðŸ˜‚", "ðŸ˜®", "ðŸ˜¢", "ðŸ‘"];
 
     if (!emoji || !allowedEmojis.includes(emoji)) {
       return res.status(400).json({
@@ -248,7 +248,7 @@ const reactToComment = async (req, res, next) => {
 
 // @desc    Update a comment
 // @route   PUT /api/diaries/:diaryId/comments/:commentId
-// @access  Private (chủ comment only)
+// @access  Private (chá»§ comment only)
 const updateComment = async (req, res, next) => {
   try {
     const { content } = req.body;
@@ -276,7 +276,7 @@ const updateComment = async (req, res, next) => {
       });
     }
 
-    // Chỉ chủ comment mới được sửa
+    // Chá»‰ chá»§ comment má»›i Ä‘Æ°á»£c sá»­a
     if (comment.author.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -286,7 +286,7 @@ const updateComment = async (req, res, next) => {
 
     comment.content = content.trim();
     await comment.save();
-    await comment.populate("author", "username");
+    await comment.populate("author", "username fullName avatar");
 
     res.status(200).json({
       success: true,

@@ -38,12 +38,20 @@ export default function Navbar() {
 
               <div className="w-px h-5 bg-slate-200 mx-1" />
 
-              <div className="flex items-center gap-2">
-                <span className="avatar">{user.username.charAt(0)}</span>
+              <Link href="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.username}
+                    className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                  />
+                ) : (
+                  <span className="avatar">{user.username.charAt(0)}</span>
+                )}
                 <span className="text-sm font-medium text-slate-700 hidden sm:inline">
-                  {user.username}
+                  {user.fullName || user.username}
                 </span>
-              </div>
+              </Link>
 
               <button
                 onClick={logout}

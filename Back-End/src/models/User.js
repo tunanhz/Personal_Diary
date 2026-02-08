@@ -25,6 +25,17 @@ const userSchema = new mongoose.Schema(
       minlength: [6, "Password must be at least 6 characters"],
       select: false, // không trả về password khi query
     },
+    fullName: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Full name must be at most 100 characters"],
+      default: "",
+    },
+    avatar: {
+      type: String,
+      trim: true,
+      default: "",
+    },
   },
   {
     timestamps: true,

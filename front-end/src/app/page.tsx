@@ -11,7 +11,7 @@ type Diary = {
   _id: string;
   title: string;
   content: string;
-  author: { _id: string; username: string };
+  author: { _id: string; username: string; fullName?: string; avatar?: string };
   tags: string[];
   reactions: Reaction[];
   commentCount: number;
@@ -145,13 +145,19 @@ export default function PublicFeedPage() {
               return (
                 <li key={d._id} id={`diary-${d._id}`} className="py-4 first:pt-0 last:pb-0 scroll-mt-24">
                   <div className="flex items-start gap-3">
-                    <span className="avatar mt-0.5" style={{ width: "2rem", height: "2rem", fontSize: "0.75rem", flexShrink: 0 }}>
-                      {d.author?.username?.charAt(0).toUpperCase()}
-                    </span>
+                    <Link href={`/user/${d.author?._id}`} title={d.author?.fullName || d.author?.username} style={{ flexShrink: 0 }}>
+                    {d.author?.avatar ? (
+                      <img src={d.author.avatar} alt={d.author.username} className="w-8 h-8 rounded-full object-cover border border-slate-200 mt-0.5 hover:ring-2 hover:ring-indigo-300 transition-all" />
+                    ) : (
+                      <span className="avatar mt-0.5 hover:ring-2 hover:ring-indigo-300 transition-all" style={{ width: "2rem", height: "2rem", fontSize: "0.75rem" }}>
+                        {d.author?.username?.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    </Link>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Link href={`/diary/${d._id}`} className="font-semibold text-slate-800 hover:text-indigo-600 transition-colors">{d.title}</Link>
-                        <span className="text-xs text-slate-400">by <span className="font-medium text-slate-500">{d.author?.username}</span></span>
+                        <span className="text-xs text-slate-400">by <Link href={`/user/${d.author?._id}`} className="font-medium text-slate-500 hover:text-indigo-600 transition-colors">{d.author?.fullName || d.author?.username}</Link></span>
                         <span className="text-xs text-slate-300">{"\u2022"}</span>
                         <span className="text-xs text-slate-400">{new Date(d.createdAt).toLocaleDateString()}</span>
                       </div>

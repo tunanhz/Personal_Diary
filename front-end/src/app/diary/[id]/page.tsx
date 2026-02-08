@@ -6,6 +6,8 @@ import { useAuth } from "../../../context/AuthProvider";
 import { apiFetch } from "../../../lib/api";
 import Link from "next/link";
 
+type Author = { _id: string; username: string; fullName?: string; avatar?: string };
+
 type Diary = {
   _id: string;
   title: string;
@@ -13,7 +15,7 @@ type Diary = {
   isPublic: boolean;
   tags: string[];
   reactions: { user: string; emoji: string }[];
-  author: { _id: string; username: string };
+  author: Author;
   createdAt: string;
   updatedAt: string;
 };
@@ -21,7 +23,7 @@ type Diary = {
 type Comment = {
   _id: string;
   content: string;
-  author: { _id: string; username: string };
+  author: Author;
   reactions: { user: string; emoji: string }[];
   replies?: Comment[];
   parentComment?: string | null;
@@ -293,17 +295,18 @@ export default function DiaryDetailPage() {
         </div>
 
         <div className="flex items-center gap-3 mt-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <div
-              className="avatar"
-              style={{ width: 28, height: 28, fontSize: 12 }}
-            >
-              {diary.author?.username?.charAt(0).toUpperCase()}
-            </div>
-            <span className="text-sm font-medium text-slate-700">
-              {diary.author?.username}
+          <Link href={`/user/${diary.author?._id}`} className="flex items-center gap-2 group">
+            {diary.author?.avatar ? (
+              <img src={diary.author.avatar} alt={diary.author.username} className="w-7 h-7 rounded-full object-cover border border-slate-200 group-hover:ring-2 group-hover:ring-indigo-300 transition-all" />
+            ) : (
+              <div className="avatar group-hover:ring-2 group-hover:ring-indigo-300 transition-all" style={{ width: 28, height: 28, fontSize: 12 }}>
+                {diary.author?.username?.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span className="text-sm font-medium text-slate-700 group-hover:text-indigo-600 transition-colors">
+              {diary.author?.fullName || diary.author?.username}
             </span>
-          </div>
+          </Link>
           <span className="text-slate-300">{"\u2022"}</span>
           <span className="text-sm text-slate-400">
             {"\uD83D\uDCC5"} {new Date(diary.createdAt).toLocaleDateString()}
@@ -488,17 +491,21 @@ export default function DiaryDetailPage() {
               return (
                 <li key={c._id}>
                   <div className="flex gap-2.5 items-start">
-                    <div
-                      className="avatar"
-                      style={{
-                        width: 36,
-                        height: 36,
-                        fontSize: 14,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {c.author?.username?.charAt(0).toUpperCase()}
-                    </div>
+                    {c.author?.avatar ? (
+                      <img src={c.author.avatar} alt={c.author.username} className="w-9 h-9 rounded-full object-cover border border-slate-200" style={{ flexShrink: 0 }} />
+                    ) : (
+                      <div
+                        className="avatar"
+                        style={{
+                          width: 36,
+                          height: 36,
+                          fontSize: 14,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {c.author?.username?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
 
                     <div className="flex-1 min-w-0">
                       {editingCommentId === c._id ? (
@@ -533,7 +540,7 @@ export default function DiaryDetailPage() {
                         <div className="relative inline-block max-w-full">
                           <div className="bg-slate-100 rounded-2xl px-3 py-2">
                             <span className="font-semibold text-[13px] text-slate-800">
-                              {c.author?.username}
+                              {c.author?.fullName || c.author?.username}
                             </span>
                             <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">
                               {c.content}
@@ -672,19 +679,23 @@ export default function DiaryDetailPage() {
                                   key={r._id}
                                   className="flex gap-2 items-start"
                                 >
-                                  <div
-                                    className="avatar"
-                                    style={{
-                                      width: 28,
-                                      height: 28,
-                                      fontSize: 11,
-                                      flexShrink: 0,
-                                    }}
-                                  >
-                                    {r.author?.username
-                                      ?.charAt(0)
-                                      .toUpperCase()}
-                                  </div>
+                                  {r.author?.avatar ? (
+                                    <img src={r.author.avatar} alt={r.author.username} className="w-7 h-7 rounded-full object-cover border border-slate-200" style={{ flexShrink: 0 }} />
+                                  ) : (
+                                    <div
+                                      className="avatar"
+                                      style={{
+                                        width: 28,
+                                        height: 28,
+                                        fontSize: 11,
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {r.author?.username
+                                        ?.charAt(0)
+                                        .toUpperCase()}
+                                    </div>
+                                  )}
                                   <div className="flex-1 min-w-0">
                                     {editingCommentId === r._id ? (
                                       <div className="bg-slate-100 rounded-2xl px-3 py-2">
@@ -728,7 +739,7 @@ export default function DiaryDetailPage() {
                                       <div className="relative inline-block max-w-full">
                                         <div className="bg-slate-100 rounded-2xl px-3 py-1.5">
                                           <span className="font-semibold text-[13px] text-slate-800">
-                                            {r.author?.username}
+                                            {r.author?.fullName || r.author?.username}
                                           </span>
                                           <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">
                                             {r.content}

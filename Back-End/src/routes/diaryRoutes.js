@@ -8,6 +8,7 @@ const {
   deleteDiary,
   toggleVisibility,
   getPublicDiaries,
+  getPublicDiariesByUser,
   reactToDiary,
 } = require("../controllers/diaryController");
 const {
@@ -22,6 +23,8 @@ const { protect, optionalAuth } = require("../middlewares/auth");
 // ===== PUBLIC ROUTES =====
 // Lấy danh sách bài viết public (guest có thể xem)
 router.get("/public", getPublicDiaries);
+// Lấy danh sách bài public của 1 user cụ thể
+router.get("/user/:userId", getPublicDiariesByUser);
 
 // ===== PRIVATE ROUTES (yêu cầu đăng nhập) =====
 // CRUD diary của user

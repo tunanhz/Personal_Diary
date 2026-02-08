@@ -8,6 +8,8 @@ type User = {
   _id: string;
   username: string;
   email: string;
+  fullName: string;
+  avatar: string;
 };
 
 type AuthContextType = {
@@ -17,6 +19,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUser: (data: Partial<User>) => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -64,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify({ email, password }),
     });
     const d = res.data;
-    save({ _id: d._id, username: d.username, email: d.email }, d.token);
+    save({ _id: d._id, username: d.username, email: d.email, fullName: d.fullName || "", avatar: d.avatar || "" }, d.token);
     router.push("/dashboard");
   };
 
@@ -74,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify({ username, email, password }),
     });
     const d = res.data;
-    save({ _id: d._id, username: d.username, email: d.email }, d.token);
+    save({ _id: d._id, username: d.username, email: d.email, fullName: d.fullName || "", avatar: d.avatar || "" }, d.token);
     router.push("/dashboard");
   };
 
@@ -83,8 +86,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     router.push("/");
   };
 
+  const updateUser = (data: Partial<User>) => {
+    if (user) {
+      const updated = { ...user, ...data };
+      save(updated, token);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

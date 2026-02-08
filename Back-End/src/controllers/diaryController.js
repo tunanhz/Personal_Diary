@@ -1,4 +1,4 @@
-const Diary = require("../models/Diary");
+﻿const Diary = require("../models/Diary");
 const Comment = require("../models/Comment");
 
 // @desc    Create a new diary entry
@@ -37,12 +37,12 @@ const getMyDiaries = async (req, res, next) => {
     // Filter theo query params
     const filter = { author: req.user._id };
 
-    // Filter theo isPublic nếu có
+    // Filter theo isPublic náº¿u cÃ³
     if (req.query.isPublic !== undefined) {
       filter.isPublic = req.query.isPublic === "true";
     }
 
-    // Tìm kiếm theo title
+    // TÃ¬m kiáº¿m theo title
     if (req.query.search) {
       filter.title = { $regex: req.query.search, $options: "i" };
     }
@@ -52,7 +52,7 @@ const getMyDiaries = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate("author", "username"),
+        .populate("author", "username fullName avatar"),
       Diary.countDocuments(filter),
     ]);
 
@@ -88,7 +88,7 @@ const getDiaryById = async (req, res, next) => {
       });
     }
 
-    // Nếu diary private, chỉ chủ sở hữu mới được xem
+    // Náº¿u diary private, chá»‰ chá»§ sá»Ÿ há»¯u má»›i Ä‘Æ°á»£c xem
     if (!diary.isPublic) {
       if (!req.user || diary.author._id.toString() !== req.user._id.toString()) {
         return res.status(403).json({
@@ -121,7 +121,7 @@ const updateDiary = async (req, res, next) => {
       });
     }
 
-    // Chỉ chủ sở hữu mới được sửa
+    // Chá»‰ chá»§ sá»Ÿ há»¯u má»›i Ä‘Æ°á»£c sá»­a
     if (diary.author.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -138,8 +138,8 @@ const updateDiary = async (req, res, next) => {
 
     await diary.save();
 
-    // Populate author trước khi trả về
-    await diary.populate("author", "username");
+    // Populate author trÆ°á»›c khi tráº£ vá»
+    await diary.populate("author", "username fullName avatar");
 
     res.status(200).json({
       success: true,
@@ -164,7 +164,7 @@ const deleteDiary = async (req, res, next) => {
       });
     }
 
-    // Chỉ chủ sở hữu mới được xóa
+    // Chá»‰ chá»§ sá»Ÿ há»¯u má»›i Ä‘Æ°á»£c xÃ³a
     if (diary.author.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -172,10 +172,10 @@ const deleteDiary = async (req, res, next) => {
       });
     }
 
-    // Xóa tất cả comments liên quan
+    // XÃ³a táº¥t cáº£ comments liÃªn quan
     await Comment.deleteMany({ diary: diary._id });
 
-    // Xóa diary
+    // XÃ³a diary
     await diary.deleteOne();
 
     res.status(200).json({
@@ -232,7 +232,7 @@ const getPublicDiaries = async (req, res, next) => {
 
     const filter = { isPublic: true };
 
-    // Tìm kiếm theo title
+    // TÃ¬m kiáº¿m theo title
     if (req.query.search) {
       filter.title = { $regex: req.query.search, $options: "i" };
     }
@@ -242,11 +242,11 @@ const getPublicDiaries = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate("author", "username"),
+        .populate("author", "username fullName avatar"),
       Diary.countDocuments(filter),
     ]);
 
-    // Đếm comments cho mỗi diary
+    // Äáº¿m comments cho má»—i diary
     const diaryIds = diaries.map((d) => d._id);
     const commentCounts = await Comment.aggregate([
       { $match: { diary: { $in: diaryIds } } },
@@ -284,7 +284,7 @@ const getPublicDiaries = async (req, res, next) => {
 const reactToDiary = async (req, res, next) => {
   try {
     const { emoji } = req.body;
-    const allowedEmojis = ["❤️", "😂", "😮", "😢", "👏"];
+    const allowedEmojis = ["â¤ï¸", "ðŸ˜‚", "ðŸ˜®", "ðŸ˜¢", "ðŸ‘"];
 
     if (!emoji || !allowedEmojis.includes(emoji)) {
       return res.status(400).json({
@@ -311,16 +311,16 @@ const reactToDiary = async (req, res, next) => {
 
     const userId = req.user._id.toString();
 
-    // Kiểm tra user đã react emoji này chưa
+    // Kiá»ƒm tra user Ä‘Ã£ react emoji nÃ y chÆ°a
     const existingIndex = diary.reactions.findIndex(
       (r) => r.user.toString() === userId && r.emoji === emoji
     );
 
     if (existingIndex > -1) {
-      // Nếu đã react emoji này → bỏ react (toggle off)
+      // Náº¿u Ä‘Ã£ react emoji nÃ y â†’ bá» react (toggle off)
       diary.reactions.splice(existingIndex, 1);
     } else {
-      // Xóa reaction cũ của user (nếu có) rồi thêm mới
+      // XÃ³a reaction cÅ© cá»§a user (náº¿u cÃ³) rá»“i thÃªm má»›i
       diary.reactions = diary.reactions.filter(
         (r) => r.user.toString() !== userId
       );
@@ -329,7 +329,7 @@ const reactToDiary = async (req, res, next) => {
 
     await diary.save();
 
-    // Tính lại summary
+    // TÃ­nh láº¡i summary
     const reactionSummary = {};
     diary.reactions.forEach((r) => {
       reactionSummary[r.emoji] = (reactionSummary[r.emoji] || 0) + 1;
@@ -352,6 +352,58 @@ const reactToDiary = async (req, res, next) => {
   }
 };
 
+// @desc    Get public diaries of a specific user
+// @route   GET /api/diaries/user/:userId
+// @access  Public
+const getPublicDiariesByUser = async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const filter = { author: req.params.userId, isPublic: true };
+
+    const [diaries, total] = await Promise.all([
+      Diary.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("author", "username fullName avatar"),
+      Diary.countDocuments(filter),
+    ]);
+
+    // Count comments for each diary
+    const diaryIds = diaries.map((d) => d._id);
+    const commentCounts = await Comment.aggregate([
+      { $match: { diary: { $in: diaryIds } } },
+      { $group: { _id: "$diary", count: { $sum: 1 } } },
+    ]);
+    const countMap = {};
+    commentCounts.forEach((c) => {
+      countMap[c._id.toString()] = c.count;
+    });
+
+    const data = diaries.map((d) => {
+      const obj = d.toObject();
+      obj.commentCount = countMap[d._id.toString()] || 0;
+      return obj;
+    });
+
+    res.status(200).json({
+      success: true,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createDiary,
   getMyDiaries,
@@ -360,5 +412,6 @@ module.exports = {
   deleteDiary,
   toggleVisibility,
   getPublicDiaries,
+  getPublicDiariesByUser,
   reactToDiary,
 };
