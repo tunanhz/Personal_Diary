@@ -26,7 +26,7 @@ export default function LoginPage() {
     <div className="max-w-md mx-auto mt-8">
       <div className="card">
         <div className="text-center mb-6">
-          <span className="text-4xl">🔐</span>
+          <img src="/icons/icons8-lock-30.png" alt="" className="w-12 h-12 mx-auto" />
           <h1 className="text-2xl font-bold mt-2 text-slate-800">Welcome Back</h1>
           <p className="text-slate-500 text-sm mt-1">Sign in to your Personal Diary</p>
         </div>

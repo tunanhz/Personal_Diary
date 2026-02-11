@@ -125,8 +125,8 @@ export default function ProfilePage() {
       </Link>
 
       <div className="card">
-        <h1 className="text-xl font-bold text-slate-800 mb-6">
-          {"\u2699\uFE0F"} Edit Profile
+        <h1 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+          <img src="/icons/icons8-settings-48.png" alt="" className="w-6 h-6" /> Edit Profile
         </h1>
 
         {/* Avatar Preview */}
@@ -151,9 +151,7 @@ export default function ProfilePage() {
               onClick={() => fileInputRef.current?.click()}
               className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
             >
-              <span className="text-white text-sm font-medium">
-                {"\uD83D\uDCF7"}
-              </span>
+              <img src="/icons/icons8-camera-24.png" alt="Upload" className="w-7 h-7 invert" />
             </button>
           </div>
 

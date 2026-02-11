@@ -290,7 +290,7 @@ export default function DiaryDetailPage() {
         <div className="flex items-start justify-between gap-3">
           <h1 className="text-2xl font-bold text-slate-800">{diary.title}</h1>
           <span className={diary.isPublic ? "badge-public" : "badge-private"}>
-            {diary.isPublic ? "\uD83C\uDF10 Public" : "\uD83D\uDD12 Private"}
+            {diary.isPublic ? "\uD83C\uDF10 Public" : <><img src="/icons/icons8-lock-30.png" alt="" className="w-3.5 h-3.5 inline mr-0.5" />Private</>}
           </span>
         </div>
 
@@ -378,9 +378,7 @@ export default function DiaryDetailPage() {
                           : "text-slate-600 hover:bg-slate-100"
                       }`}
                     >
-                      <span className="text-base">
-                        {userEmoji || THUMBSUP}
-                      </span>
+                      {userEmoji ? <span className="text-base">{userEmoji}</span> : <img src="/icons/icons8-like-48.png" alt="Like" className="w-[18px] h-[18px]" />}
                       {userEmoji ? (EMOJI_LABELS[userEmoji] || "Liked") : "Like"}
                     </button>
 
@@ -407,7 +405,7 @@ export default function DiaryDetailPage() {
                     }
                     className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
                   >
-                    <span className="text-base">{"\uD83D\uDCAC"}</span>
+                    <img src="/icons/icons8-comment.gif" alt="" className="w-[18px] h-[18px]" />
                     Comment
                   </button>
                 </div>

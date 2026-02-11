@@ -12,7 +12,7 @@ export default function Navbar() {
       <div className="max-w-5xl mx-auto flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <span className="text-2xl">📓</span>
+          <img src="/icons/logo.png" alt="Logo" className="w-[60px] h-[60px] object-contain" />
           <span className="font-bold text-lg text-slate-800 group-hover:text-indigo-600 transition-colors">
             Personal Diary
           </span>
@@ -22,18 +22,18 @@ export default function Navbar() {
         <div className="flex items-center gap-2">
           <Link
             href="/"
-            className="px-3 py-1.5 text-sm text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+            className="px-3 py-1.5 text-sm text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all flex items-center gap-1.5"
           >
-            🌐 Explore
+            <img src="/icons/icons8-globe-100.png" alt="" className="w-[25px] h-[25px]" /> Explore
           </Link>
 
           {token && user ? (
             <>
               <Link
                 href="/dashboard"
-                className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all flex items-center gap-1.5"
               >
-                📝 My Diaries
+                <img src="/icons/icons8-note-26.png" alt="" className="w-[18px] h-[18px]" /> My Diaries
               </Link>
 
               <div className="w-px h-5 bg-slate-200 mx-1" />

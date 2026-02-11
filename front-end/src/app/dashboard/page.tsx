@@ -143,7 +143,7 @@ export default function DashboardPage() {
 
   if (!token) return (
     <div className="empty-state mt-12">
-      <div className="icon">🔒</div>
+      <div className="icon"><img src="/icons/icons8-lock-30.png" alt="" className="w-14 h-14 mx-auto" /></div>
       <h3>Please sign in</h3>
       <p>You need to log in to view your dashboard</p>
       <Link href="/login" className="btn-primary mt-4 inline-flex">Sign In</Link>
@@ -155,21 +155,22 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">📝 My Diaries</h1>
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><img src="/icons/icons8-note-26.png" alt="" className="w-7 h-7" /> My Diaries</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             {diaries.length} {diaries.length === 1 ? "entry" : "entries"}
           </p>
         </div>
-        <button onClick={openNewForm} className="btn-primary">
-          ✍️ New Entry
+        <button onClick={openNewForm} className="btn-primary flex items-center gap-1.5">
+          <img src="/icons/icons8-edit-24.png" alt="" className="w-[18px] h-[18px] invert" /> New Entry
         </button>
       </div>
 
       {/* Create/Edit Form */}
       {showForm && (
         <div className="card-highlight mb-6">
-          <h2 className="font-bold text-lg text-indigo-900 mb-4">
-            {editingId ? "✏️ Edit Diary" : "✍️ New Diary Entry"}
+          <h2 className="font-bold text-lg text-indigo-900 mb-4 flex items-center gap-2">
+            <img src={editingId ? "/icons/icons8-edit-24.png" : "/icons/icons8-edit-24.png"} alt="" className="w-5 h-5" />
+            {editingId ? "Edit Diary" : "New Diary Entry"}
           </h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
@@ -249,7 +250,7 @@ export default function DashboardPage() {
         <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-200">{error}</div>
       ) : diaries.length === 0 ? (
         <div className="empty-state">
-          <div className="icon">📔</div>
+          <div className="icon"><img src="/icons/icons8-open-book.gif" alt="" className="w-14 h-14 mx-auto" /></div>
           <h3>Your diary is empty</h3>
           <p>Click &quot;New Entry&quot; to start writing your first diary!</p>
         </div>
@@ -268,7 +269,7 @@ export default function DashboardPage() {
                       {d.title}
                     </Link>
                     <span className={d.isPublic ? "badge-public" : "badge-private"}>
-                      {d.isPublic ? "🌐 Public" : "🔒 Private"}
+                      {d.isPublic ? "🌐 Public" : <><img src="/icons/icons8-lock-30.png" alt="" className="w-3.5 h-3.5 inline mr-0.5" />Private</>}
                     </span>
                   </div>
 
@@ -294,21 +295,21 @@ export default function DashboardPage() {
                     className="btn-ghost"
                     title={d.isPublic ? "Make Private" : "Make Public"}
                   >
-                    {d.isPublic ? "🔒" : "🌐"}
+                    {d.isPublic ? <img src="/icons/icons8-lock-30.png" alt="Lock" className="w-[18px] h-[18px]" /> : "🌐"}
                   </button>
                   <button
                     onClick={() => openEditForm(d)}
                     className="btn-ghost"
                     title="Edit"
                   >
-                    ✏️
+                    <img src="/icons/icons8-edit-24.png" alt="Edit" className="w-[18px] h-[18px]" />
                   </button>
                   <button
                     onClick={() => handleDelete(d._id)}
                     className="btn-danger"
                     title="Delete"
                   >
-                    🗑️
+                    <img src="/icons/icons8-garbage.gif" alt="Delete" className="w-[18px] h-[18px]" />
                   </button>
                 </div>
               </div>

@@ -104,7 +104,7 @@ export default function PublicFeedPage() {
   return (
     <div>
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-slate-800">{"\uD83D\uDCD6"} Explore Public Diaries</h1>
+        <h1 className="text-3xl font-bold text-slate-800 flex items-center justify-center gap-2"><img src="/icons/icons8-open-book.gif" alt="" className="w-9 h-9" /> Explore Public Diaries</h1>
         <p className="text-slate-500 mt-2">Read stories and thoughts shared by the community</p>
       </div>
 
@@ -196,7 +196,7 @@ export default function PublicFeedPage() {
                             onClick={() => { if (userEmoji) { handleReact(d._id, userEmoji); } else { handleReact(d._id, "\u2764\uFE0F"); } }}
                             className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-sm font-semibold transition-colors cursor-pointer ${userEmoji ? "text-indigo-600 hover:bg-indigo-50" : "text-slate-600 hover:bg-slate-100"}`}
                           >
-                            <span className="text-base">{userEmoji || "\uD83D\uDC4D"}</span>
+                            {userEmoji ? <span className="text-base">{userEmoji}</span> : <img src="/icons/icons8-like-48.png" alt="Like" className="w-[18px] h-[18px]" />}
                             {userEmoji ? (EMOJI_LABELS[userEmoji] || "Liked") : "Like"}
                           </button>
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 hidden group-hover/like:flex flex-col items-center z-30">
@@ -209,7 +209,7 @@ export default function PublicFeedPage() {
                           </div>
                         </div>
                         <Link href={`/diary/${d._id}`} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
-                          <span className="text-base">{"\uD83D\uDCAC"}</span>Comment
+                          <img src="/icons/icons8-comment.gif" alt="" className="w-[18px] h-[18px]" />Comment
                         </Link>
                       </div>
                     </div>

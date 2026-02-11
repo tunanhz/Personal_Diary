@@ -284,7 +284,7 @@ const getPublicDiaries = async (req, res, next) => {
 const reactToDiary = async (req, res, next) => {
   try {
     const { emoji } = req.body;
-    const allowedEmojis = ["â¤ï¸", "ðŸ˜‚", "ðŸ˜®", "ðŸ˜¢", "ðŸ‘"];
+    const allowedEmojis = ["\u2764\uFE0F", "\uD83D\uDE02", "\uD83D\uDE2E", "\uD83D\uDE22", "\uD83D\uDC4F"];
 
     if (!emoji || !allowedEmojis.includes(emoji)) {
       return res.status(400).json({

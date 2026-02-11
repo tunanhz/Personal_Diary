@@ -27,7 +27,7 @@ export default function RegisterPage() {
     <div className="max-w-md mx-auto mt-8">
       <div className="card">
         <div className="text-center mb-6">
-          <span className="text-4xl">✨</span>
+          <img src="/icons/logo.png" alt="" className="w-12 h-12 mx-auto" />
           <h1 className="text-2xl font-bold mt-2 text-slate-800">Create Account</h1>
           <p className="text-slate-500 text-sm mt-1">Start writing your personal diary today</p>
         </div>

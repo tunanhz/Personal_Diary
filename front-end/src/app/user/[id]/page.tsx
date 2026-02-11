@@ -213,9 +213,9 @@ export default function UserProfilePage() {
           {isMe && (
             <Link
               href="/profile"
-              className="mt-3 text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+              className="mt-3 text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
             >
-              {"\u270F\uFE0F"} Edit my profile
+              <img src="/icons/icons8-edit-24.png" alt="" className="w-4 h-4" /> Edit my profile
             </Link>
           )}
         </div>
@@ -223,8 +223,8 @@ export default function UserProfilePage() {
 
       {/* Diaries Section */}
       <div className="flex items-center gap-2 mb-4">
-        <h2 className="text-lg font-bold text-slate-800">
-          {"\uD83D\uDCD6"} Public Diaries
+        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+          <img src="/icons/icons8-open-book.gif" alt="" className="w-6 h-6" /> Public Diaries
         </h2>
         <span className="text-sm text-slate-400 font-normal">
           by {profile.fullName || profile.username}
@@ -327,7 +327,7 @@ export default function UserProfilePage() {
                             : "text-slate-600 hover:bg-slate-100"
                         }`}
                       >
-                        <span className="text-base">{userEmoji || "\uD83D\uDC4D"}</span>
+                        {userEmoji ? <span className="text-base">{userEmoji}</span> : <img src="/icons/icons8-like-48.png" alt="Like" className="w-[18px] h-[18px]" />}
                         {userEmoji ? (EMOJI_LABELS[userEmoji] || "Liked") : "Like"}
                       </button>
 
@@ -352,7 +352,7 @@ export default function UserProfilePage() {
                       href={`/diary/${d._id}`}
                       className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
                     >
-                      <span className="text-base">{"\uD83D\uDCAC"}</span>
+                      <img src="/icons/icons8-comment.gif" alt="" className="w-[18px] h-[18px]" />
                       Comment
                     </Link>
                   </div>
