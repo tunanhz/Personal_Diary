@@ -30,11 +30,21 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          <div className="min-h-screen bg-slate-50 text-slate-900">
+          <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
             <Navbar />
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">{children}</main>
-            <footer className="border-t border-slate-200 py-6 text-center text-sm text-slate-400">
-              © 2026 Personal Diary. Built with ❤️
+            <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">{children}</main>
+            <footer className="border-t border-slate-200/60 py-8 mt-auto">
+              <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg gradient-bg flex items-center justify-center">
+                    <span className="text-white text-xs">📓</span>
+                  </div>
+                  <span className="text-sm font-semibold gradient-text">Personal Diary</span>
+                </div>
+                <p className="text-sm text-slate-400">
+                  © 2026 Personal Diary. Built with ❤️ and ☕ by <span style={{color: 'red'}}>@Dương Tuấn Anh</span>
+                </p>
+              </div>
             </footer>
           </div>
         </AuthProvider>

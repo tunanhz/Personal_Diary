@@ -5,12 +5,18 @@ import { useAuth } from "../../context/AuthProvider";
 import { apiFetch } from "../../lib/api";
 import Link from "next/link";
 
+type DiaryImage = {
+  url: string;
+  publicId: string;
+};
+
 type Diary = {
   _id: string;
   title: string;
   content: string;
   isPublic: boolean;
   tags: string[];
+  images: DiaryImage[];
   createdAt: string;
 };
 
@@ -27,6 +33,10 @@ export default function DashboardPage() {
   const [formContent, setFormContent] = useState("");
   const [formPublic, setFormPublic] = useState(false);
   const [formTags, setFormTags] = useState("");
+  const [formImages, setFormImages] = useState<File[]>([]);
+  const [formImagePreviews, setFormImagePreviews] = useState<string[]>([]);
+  const [existingImages, setExistingImages] = useState<DiaryImage[]>([]);
+  const [removeImageIds, setRemoveImageIds] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
@@ -54,6 +64,10 @@ export default function DashboardPage() {
     setFormContent("");
     setFormPublic(false);
     setFormTags("");
+    setFormImages([]);
+    setFormImagePreviews([]);
+    setExistingImages([]);
+    setRemoveImageIds([]);
     setFormError(null);
     setShowForm(true);
   };
@@ -65,38 +79,85 @@ export default function DashboardPage() {
     setFormContent(d.content);
     setFormPublic(d.isPublic);
     setFormTags(d.tags?.join(", ") || "");
+    setFormImages([]);
+    setFormImagePreviews([]);
+    setExistingImages(d.images || []);
+    setRemoveImageIds([]);
     setFormError(null);
     setShowForm(true);
   };
 
-  // Submit form (create or update)
+  // Handle image selection
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const totalImages = existingImages.length - removeImageIds.length + formImages.length + files.length;
+    if (totalImages > 5) {
+      setFormError("Maximum 5 images allowed per diary entry.");
+      return;
+    }
+    setFormImages((prev) => [...prev, ...files]);
+    const newPreviews = files.map((f) => URL.createObjectURL(f));
+    setFormImagePreviews((prev) => [...prev, ...newPreviews]);
+  };
+
+  const removeNewImage = (index: number) => {
+    URL.revokeObjectURL(formImagePreviews[index]);
+    setFormImages((prev) => prev.filter((_, i) => i !== index));
+    setFormImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const markExistingImageForRemoval = (publicId: string) => {
+    setRemoveImageIds((prev) => [...prev, publicId]);
+  };
+
+  const undoRemoveExistingImage = (publicId: string) => {
+    setRemoveImageIds((prev) => prev.filter((id) => id !== publicId));
+  };
+
+  // Submit form (create or update) - using FormData
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     setFormLoading(true);
 
-    const body = {
-      title: formTitle,
-      content: formContent,
-      isPublic: formPublic,
-      tags: formTags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
-    };
+    const formData = new FormData();
+    formData.append("title", formTitle);
+    formData.append("content", formContent);
+    formData.append("isPublic", String(formPublic));
+    formData.append(
+      "tags",
+      JSON.stringify(
+        formTags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      )
+    );
+
+    // Append new images
+    formImages.forEach((file) => {
+      formData.append("images", file);
+    });
+
+    // Append image removal list (only for edit)
+    if (editingId && removeImageIds.length > 0) {
+      formData.append("removeImageIds", JSON.stringify(removeImageIds));
+    }
 
     try {
       if (editingId) {
         await apiFetch(`/diaries/${editingId}`, {
           method: "PUT",
-          body: JSON.stringify(body),
+          body: formData,
         }, token);
       } else {
         await apiFetch("/diaries", {
           method: "POST",
-          body: JSON.stringify(body),
+          body: formData,
         }, token);
       }
+      // Cleanup preview URLs
+      formImagePreviews.forEach((url) => URL.revokeObjectURL(url));
       setShowForm(false);
       fetchMyDiaries();
     } catch (err: any) {
@@ -142,35 +203,38 @@ export default function DashboardPage() {
   );
 
   if (!token) return (
-    <div className="empty-state mt-12">
-      <div className="icon"><img src="/icons/icons8-lock-30.png" alt="" className="w-14 h-14 mx-auto" /></div>
-      <h3>Please sign in</h3>
+    <div className="empty-state mt-12 animate-fade-in">
+      <div className="w-20 h-20 rounded-2xl gradient-bg flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200/50">
+        <span className="text-3xl">🔒</span>
+      </div>
+      <h3 className="text-xl">Please sign in</h3>
       <p>You need to log in to view your dashboard</p>
-      <Link href="/login" className="btn-primary mt-4 inline-flex">Sign In</Link>
+      <Link href="/login" className="btn-primary mt-4 inline-flex">Sign In →</Link>
     </div>
   );
 
   return (
-    <div>
+    <div className="animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><img src="/icons/icons8-note-26.png" alt="" className="w-7 h-7" /> My Diaries</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
-            {diaries.length} {diaries.length === 1 ? "entry" : "entries"}
+          <h1 className="text-3xl font-extrabold text-slate-800">
+            📝 <span className="gradient-text">My Diaries</span>
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            {diaries.length} {diaries.length === 1 ? "entry" : "entries"} total
           </p>
         </div>
         <button onClick={openNewForm} className="btn-primary flex items-center gap-1.5">
-          <img src="/icons/icons8-edit-24.png" alt="" className="w-[18px] h-[18px] invert" /> New Entry
+          ✏️ New Entry
         </button>
       </div>
 
       {/* Create/Edit Form */}
       {showForm && (
-        <div className="card-highlight mb-6">
+        <div className="card-highlight mb-6 animate-fade-in">
           <h2 className="font-bold text-lg text-indigo-900 mb-4 flex items-center gap-2">
-            <img src={editingId ? "/icons/icons8-edit-24.png" : "/icons/icons8-edit-24.png"} alt="" className="w-5 h-5" />
-            {editingId ? "Edit Diary" : "New Diary Entry"}
+            {editingId ? "✏️" : "🚀"} {editingId ? "Edit Diary" : "New Diary Entry"}
           </h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
@@ -203,6 +267,88 @@ export default function DashboardPage() {
                 placeholder="e.g. daily, travel, thoughts"
                 className="input"
               />
+            </div>
+
+            {/* Image Upload */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                📷 Images <span className="text-slate-400 font-normal">(max 5, up to 5MB each)</span>
+              </label>
+
+              {/* Existing images (edit mode) */}
+              {existingImages.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {existingImages.map((img) => {
+                    const isMarkedForRemoval = removeImageIds.includes(img.publicId);
+                    return (
+                      <div key={img.publicId} className="relative group">
+                        <img
+                          src={img.url}
+                          alt=""
+                          className={`w-20 h-20 object-cover rounded-lg border-2 transition-all ${
+                            isMarkedForRemoval
+                              ? "opacity-30 border-red-300"
+                              : "border-slate-200"
+                          }`}
+                        />
+                        {isMarkedForRemoval ? (
+                          <button
+                            type="button"
+                            onClick={() => undoRemoveExistingImage(img.publicId)}
+                            className="absolute inset-0 flex items-center justify-center bg-red-500/20 rounded-lg text-xs font-semibold text-red-700 hover:bg-red-500/30 transition-all"
+                          >
+                            Undo
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => markExistingImageForRemoval(img.publicId)}
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* New image previews */}
+              {formImagePreviews.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {formImagePreviews.map((src, i) => (
+                    <div key={i} className="relative group">
+                      <img
+                        src={src}
+                        alt=""
+                        className="w-20 h-20 object-cover rounded-lg border-2 border-indigo-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeNewImage(i)}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Upload button */}
+              {(existingImages.length - removeImageIds.length + formImages.length) < 5 && (
+                <label className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg cursor-pointer transition-colors border border-dashed border-slate-300">
+                  <span>📎 Add Images</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    multiple
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+                </label>
+              )}
             </div>
 
             <label className="flex items-center gap-2.5 text-sm cursor-pointer bg-slate-50 p-3 rounded-lg border border-slate-200">
@@ -250,35 +396,57 @@ export default function DashboardPage() {
         <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-200">{error}</div>
       ) : diaries.length === 0 ? (
         <div className="empty-state">
-          <div className="icon"><img src="/icons/icons8-open-book.gif" alt="" className="w-14 h-14 mx-auto" /></div>
+          <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-3">
+            <span className="text-3xl">📖</span>
+          </div>
           <h3>Your diary is empty</h3>
           <p>Click &quot;New Entry&quot; to start writing your first diary!</p>
         </div>
       ) : (
-        <ul className="divide-y divide-slate-200">
+        <div className="grid gap-3">
           {diaries.map((d) => (
-            <li key={d._id} className="py-4 first:pt-0 last:pb-0 group">
+            <div key={d._id} className="card group animate-fade-in">
               <div className="flex items-start justify-between gap-3">
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Link
                       href={`/diary/${d._id}`}
-                      className="font-semibold text-slate-800 hover:text-indigo-600 transition-colors"
+                      className="font-bold text-slate-800 hover:text-indigo-600 transition-colors text-[15px]"
                     >
                       {d.title}
                     </Link>
                     <span className={d.isPublic ? "badge-public" : "badge-private"}>
-                      {d.isPublic ? "🌐 Public" : <><img src="/icons/icons8-lock-30.png" alt="" className="w-3.5 h-3.5 inline mr-0.5" />Private</>}
+                      {d.isPublic ? "🌐 Public" : "🔒 Private"}
                     </span>
                   </div>
 
-                  <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+                  <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
                     {d.content.slice(0, 180)}
                     {d.content.length > 180 ? "..." : ""}
                   </p>
 
-                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  {/* Image thumbnails */}
+                  {d.images?.length > 0 && (
+                    <div className="flex gap-2 mt-2.5">
+                      {d.images.slice(0, 3).map((img, i) => (
+                        <div key={img.publicId} className="relative rounded-lg overflow-hidden border border-slate-200 shadow-sm">
+                          <img
+                            src={img.url}
+                            alt=""
+                            className="w-20 h-20 object-cover hover:scale-105 transition-transform duration-200"
+                          />
+                          {i === 2 && d.images.length > 3 && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xs font-bold">
+                              +{d.images.length - 3}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <span className="text-xs text-slate-400">
                       📅 {new Date(d.createdAt).toLocaleDateString()}
                     </span>
@@ -289,33 +457,33 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                <div className="flex gap-1 opacity-30 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => handleToggle(d._id)}
                     className="btn-ghost"
                     title={d.isPublic ? "Make Private" : "Make Public"}
                   >
-                    {d.isPublic ? <img src="/icons/icons8-lock-30.png" alt="Lock" className="w-[18px] h-[18px]" /> : "🌐"}
+                    {d.isPublic ? "🔒" : "🌐"}
                   </button>
                   <button
                     onClick={() => openEditForm(d)}
                     className="btn-ghost"
                     title="Edit"
                   >
-                    <img src="/icons/icons8-edit-24.png" alt="Edit" className="w-[18px] h-[18px]" />
+                    ✏️
                   </button>
                   <button
                     onClick={() => handleDelete(d._id)}
                     className="btn-danger"
                     title="Delete"
                   >
-                    <img src="/icons/icons8-garbage.gif" alt="Delete" className="w-[18px] h-[18px]" />
+                    🗑️
                   </button>
                 </div>
               </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

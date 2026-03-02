@@ -19,6 +19,7 @@ const {
   updateComment,
 } = require("../controllers/commentController");
 const { protect, optionalAuth } = require("../middlewares/auth");
+const upload = require("../middlewares/upload");
 
 // ===== PUBLIC ROUTES =====
 // Lấy danh sách bài viết public (guest có thể xem)
@@ -28,9 +29,9 @@ router.get("/user/:userId", getPublicDiariesByUser);
 
 // ===== PRIVATE ROUTES (yêu cầu đăng nhập) =====
 // CRUD diary của user
-router.post("/", protect, createDiary);
+router.post("/", protect, upload.array("images", 5), createDiary);
 router.get("/my", protect, getMyDiaries);
-router.put("/:id", protect, updateDiary);
+router.put("/:id", protect, upload.array("images", 5), updateDiary);
 router.delete("/:id", protect, deleteDiary);
 router.patch("/:id/toggle-visibility", protect, toggleVisibility);
 

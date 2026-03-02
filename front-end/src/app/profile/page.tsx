@@ -116,31 +116,30 @@ export default function ProfilePage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-lg mx-auto mt-4">
+    <div className="max-w-lg mx-auto mt-4 animate-fade-in">
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors mb-4"
+        className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors mb-4 group"
       >
-        {"\u2190"} Back to Dashboard
+        <span className="group-hover:-translate-x-0.5 transition-transform">←</span> Back to Dashboard
       </Link>
 
-      <div className="card">
-        <h1 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-          <img src="/icons/icons8-settings-48.png" alt="" className="w-6 h-6" /> Edit Profile
-        </h1>
+      <div className="card overflow-hidden">
+        {/* Gradient banner */}
+        <div className="gradient-bg h-28 -mx-6 -mt-6" style={{ marginLeft: "-1.5rem", marginRight: "-1.5rem", marginTop: "-1.5rem" }} />
 
-        {/* Avatar Preview */}
-        <div className="flex flex-col items-center mb-6">
+        {/* Avatar Preview — nổi lên trên banner */}
+        <div className="flex flex-col items-center -mt-14 mb-4">
           <div className="relative group">
             {preview ? (
               <img
                 src={preview}
                 alt="Avatar preview"
-                className="w-24 h-24 rounded-full object-cover border-4 border-indigo-100 shadow-md"
+                className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
                 onError={() => setPreview("")}
               />
             ) : (
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-md">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg border-4 border-white">
                 {(fullName || user.username).charAt(0).toUpperCase()}
               </div>
             )}
@@ -151,7 +150,7 @@ export default function ProfilePage() {
               onClick={() => fileInputRef.current?.click()}
               className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
             >
-              <img src="/icons/icons8-camera-24.png" alt="Upload" className="w-7 h-7 invert" />
+              <span className="text-white text-xl">📷</span>
             </button>
           </div>
 

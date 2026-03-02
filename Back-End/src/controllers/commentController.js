@@ -1,5 +1,6 @@
 ﻿const Comment = require("../models/Comment");
 const Diary = require("../models/Diary");
+const { getIO } = require("../socket");
 
 // @desc    Add comment to a public diary
 // @route   POST /api/diaries/:diaryId/comments
@@ -52,6 +53,13 @@ const addComment = async (req, res, next) => {
 
     // Populate author trÆ°á»›c khi tráº£ vá»
     await comment.populate("author", "username fullName avatar");
+
+    // Emit real-time event
+    const io = getIO();
+    io.to(`diary:${diary._id.toString()}`).emit("new-comment", {
+      diaryId: diary._id.toString(),
+      comment: comment.toObject(),
+    });
 
     res.status(201).json({
       success: true,
@@ -173,10 +181,22 @@ const deleteComment = async (req, res, next) => {
       });
     }
 
+    const deletedParentComment = comment.parentComment
+      ? comment.parentComment.toString()
+      : null;
+
     await comment.deleteOne();
 
     // XÃ³a táº¥t cáº£ replies náº¿u Ä‘Ã¢y lÃ  parent comment
     await Comment.deleteMany({ parentComment: req.params.commentId });
+
+    // Emit real-time event
+    const ioD = getIO();
+    ioD.to(`diary:${req.params.diaryId}`).emit("delete-comment", {
+      diaryId: req.params.diaryId,
+      commentId: req.params.commentId,
+      parentComment: deletedParentComment,
+    });
 
     res.status(200).json({
       success: true,
@@ -235,6 +255,14 @@ const reactToComment = async (req, res, next) => {
 
     await comment.save();
 
+    // Emit real-time event
+    const ioR = getIO();
+    ioR.to(`diary:${req.params.diaryId}`).emit("comment-reaction", {
+      diaryId: req.params.diaryId,
+      commentId: req.params.commentId,
+      reactions: comment.reactions,
+    });
+
     res.status(200).json({
       success: true,
       data: {
@@ -287,6 +315,13 @@ const updateComment = async (req, res, next) => {
     comment.content = content.trim();
     await comment.save();
     await comment.populate("author", "username fullName avatar");
+
+    // Emit real-time event
+    const ioU = getIO();
+    ioU.to(`diary:${req.params.diaryId}`).emit("update-comment", {
+      diaryId: req.params.diaryId,
+      comment: comment.toObject(),
+    });
 
     res.status(200).json({
       success: true,

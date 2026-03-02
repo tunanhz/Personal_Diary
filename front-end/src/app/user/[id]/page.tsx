@@ -22,6 +22,7 @@ type Diary = {
   content: string;
   author: { _id: string; username: string; fullName?: string; avatar?: string };
   tags: string[];
+  images: { url: string; publicId: string }[];
   reactions: Reaction[];
   commentCount: number;
   createdAt: string;
@@ -170,26 +171,29 @@ export default function UserProfilePage() {
   const isMe = currentUser && currentUser._id === profile._id;
 
   return (
-    <div className="max-w-2xl mx-auto mt-4">
+    <div className="max-w-2xl mx-auto mt-4 animate-fade-in">
       {/* Back link */}
       <Link
         href="/"
-        className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors mb-4"
+        className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors mb-4 group"
       >
-        {"\u2190"} Back to Explore
+        <span className="group-hover:-translate-x-0.5 transition-transform">←</span> Back to Explore
       </Link>
 
       {/* Profile Card */}
-      <div className="card mb-6">
-        <div className="flex flex-col items-center py-4">
+      <div className="card mb-6 overflow-hidden">
+        {/* Gradient banner */}
+        <div className="gradient-bg h-24 -mx-6 -mt-6 mb-0" style={{ marginLeft: "-1.5rem", marginRight: "-1.5rem", marginTop: "-1.5rem" }} />
+
+        <div className="flex flex-col items-center -mt-12">
           {profile.avatar ? (
             <img
               src={profile.avatar}
               alt={profile.username}
-              className="w-24 h-24 rounded-full object-cover border-4 border-indigo-100 shadow-md"
+              className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
             />
           ) : (
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-md">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg border-4 border-white">
               {(profile.fullName || profile.username).charAt(0).toUpperCase()}
             </div>
           )}
@@ -215,7 +219,7 @@ export default function UserProfilePage() {
               href="/profile"
               className="mt-3 text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
             >
-              <img src="/icons/icons8-edit-24.png" alt="" className="w-4 h-4" /> Edit my profile
+              ✏️ Edit my profile
             </Link>
           )}
         </div>
@@ -224,7 +228,7 @@ export default function UserProfilePage() {
       {/* Diaries Section */}
       <div className="flex items-center gap-2 mb-4">
         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-          <img src="/icons/icons8-open-book.gif" alt="" className="w-6 h-6" /> Public Diaries
+          📖 Public Diaries
         </h2>
         <span className="text-sm text-slate-400 font-normal">
           by {profile.fullName || profile.username}
@@ -273,6 +277,36 @@ export default function UserProfilePage() {
                     {d.content.slice(0, 200)}
                     {d.content.length > 200 ? "..." : ""}
                   </p>
+
+                  {/* Diary Images */}
+                  {d.images?.length > 0 && (
+                    <Link href={`/diary/${d._id}`} className="block mt-2.5 rounded-xl overflow-hidden border border-slate-200">
+                      {d.images.length === 1 ? (
+                        <img src={d.images[0].url} alt="" className="w-full max-h-64 object-cover hover:opacity-95 transition-opacity" />
+                      ) : d.images.length === 2 ? (
+                        <div className="grid grid-cols-2 gap-0.5">
+                          {d.images.map((img) => (
+                            <img key={img.publicId} src={img.url} alt="" className="w-full h-36 object-cover hover:opacity-95 transition-opacity" />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-0.5">
+                          <img src={d.images[0].url} alt="" className="w-full h-36 object-cover hover:opacity-95 transition-opacity" />
+                          <img src={d.images[1].url} alt="" className="w-full h-36 object-cover hover:opacity-95 transition-opacity" />
+                          {d.images[2] && (
+                            <div className="relative col-span-2">
+                              <img src={d.images[2].url} alt="" className="w-full h-28 object-cover hover:opacity-95 transition-opacity" />
+                              {d.images.length > 3 && (
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xl font-bold">
+                                  +{d.images.length - 3} more
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </Link>
+                  )}
 
                   {/* Tags */}
                   {d.tags?.length > 0 && (

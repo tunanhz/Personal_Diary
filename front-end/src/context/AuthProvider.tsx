@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const parsed = JSON.parse(stored);
         setUser(parsed.user || null);
-        setToken(parsed.token || null);
+        setToken(parsed.accessToken || null);
       } catch (e) {
         localStorage.removeItem("pd_auth");
       }
@@ -51,11 +51,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
-  const save = (u: User | null, t: string | null) => {
+  // Lắng nghe event token-refreshed từ api.ts để cập nhật state
+  useEffect(() => {
+    const handleTokenRefreshed = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.accessToken) {
+        setToken(detail.accessToken);
+      }
+    };
+
+    const handleForceLogout = () => {
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem("pd_auth");
+      router.push("/login");
+    };
+
+    window.addEventListener("token-refreshed", handleTokenRefreshed);
+    window.addEventListener("force-logout", handleForceLogout);
+
+    return () => {
+      window.removeEventListener("token-refreshed", handleTokenRefreshed);
+      window.removeEventListener("force-logout", handleForceLogout);
+    };
+  }, [router]);
+
+  const save = (u: User | null, accessToken: string | null, refreshToken: string | null) => {
     setUser(u);
-    setToken(t);
-    if (u && t) {
-      localStorage.setItem("pd_auth", JSON.stringify({ user: u, token: t }));
+    setToken(accessToken);
+    if (u && accessToken && refreshToken) {
+      localStorage.setItem("pd_auth", JSON.stringify({ user: u, accessToken, refreshToken }));
     } else {
       localStorage.removeItem("pd_auth");
     }
@@ -67,7 +92,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify({ email, password }),
     });
     const d = res.data;
-    save({ _id: d._id, username: d.username, email: d.email, fullName: d.fullName || "", avatar: d.avatar || "" }, d.token);
+    save(
+      { _id: d._id, username: d.username, email: d.email, fullName: d.fullName || "", avatar: d.avatar || "" },
+      d.accessToken,
+      d.refreshToken
+    );
     router.push("/dashboard");
   };
 
@@ -77,19 +106,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify({ username, email, password }),
     });
     const d = res.data;
-    save({ _id: d._id, username: d.username, email: d.email, fullName: d.fullName || "", avatar: d.avatar || "" }, d.token);
+    save(
+      { _id: d._id, username: d.username, email: d.email, fullName: d.fullName || "", avatar: d.avatar || "" },
+      d.accessToken,
+      d.refreshToken
+    );
     router.push("/dashboard");
   };
 
-  const logout = () => {
-    save(null, null);
+  const logout = async () => {
+    // Gọi API logout để xóa refresh token phía server
+    try {
+      if (token) {
+        await apiFetch(`/auth/logout`, { method: "POST" }, token);
+      }
+    } catch {
+      // Ignore errors khi logout
+    }
+    save(null, null, null);
     router.push("/");
   };
 
   const updateUser = (data: Partial<User>) => {
     if (user) {
       const updated = { ...user, ...data };
-      save(updated, token);
+      const stored = localStorage.getItem("pd_auth");
+      let refreshToken: string | null = null;
+      if (stored) {
+        try {
+          refreshToken = JSON.parse(stored).refreshToken || null;
+        } catch {}
+      }
+      save(updated, token, refreshToken);
     }
   };
 

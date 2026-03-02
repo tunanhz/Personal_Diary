@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "../../../context/AuthProvider";
 import { apiFetch } from "../../../lib/api";
 import Link from "next/link";
+import { io as socketIO, Socket } from "socket.io-client";
 
 type Author = { _id: string; username: string; fullName?: string; avatar?: string };
 
@@ -14,6 +15,7 @@ type Diary = {
   content: string;
   isPublic: boolean;
   tags: string[];
+  images: { url: string; publicId: string }[];
   reactions: { user: string; emoji: string }[];
   author: Author;
   createdAt: string;
@@ -65,6 +67,8 @@ export default function DiaryDetailPage() {
 
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
 
+  const socketRef = useRef<Socket | null>(null);
+
   const fetchDiary = useCallback(async () => {
     try {
       const res = await apiFetch(`/diaries/${id}`, {}, token);
@@ -90,6 +94,132 @@ export default function DiaryDetailPage() {
     fetchComments();
   }, [fetchDiary, fetchComments]);
 
+  // Socket.IO real-time connection
+  useEffect(() => {
+    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000";
+    const socket = socketIO(SOCKET_URL, { transports: ["websocket", "polling"] });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      console.log("🔌 Socket connected:", socket.id);
+      socket.emit("join-diary", id);
+    });
+
+    // New comment added (top-level or reply)
+    socket.on("new-comment", (data: { diaryId: string; comment: Comment }) => {
+      if (data.diaryId !== id) return;
+      const newComment = data.comment;
+
+      if (newComment.parentComment) {
+        // It's a reply - add to parent's replies
+        setComments((prev) =>
+          prev.map((c) => {
+            if (c._id === newComment.parentComment) {
+              const existingReplies = c.replies || [];
+              // Avoid duplicates
+              if (existingReplies.some((r) => r._id === newComment._id)) return c;
+              return { ...c, replies: [...existingReplies, newComment] };
+            }
+            return c;
+          })
+        );
+        // Auto-expand replies
+        setExpandedReplies((prev) => new Set(prev).add(newComment.parentComment!));
+      } else {
+        // It's a top-level comment - add to top
+        setComments((prev) => {
+          if (prev.some((c) => c._id === newComment._id)) return prev;
+          return [{ ...newComment, replies: [] }, ...prev];
+        });
+      }
+    });
+
+    // Comment deleted
+    socket.on("delete-comment", (data: { diaryId: string; commentId: string; parentComment: string | null }) => {
+      if (data.diaryId !== id) return;
+
+      if (data.parentComment) {
+        // Reply deleted - remove from parent's replies
+        setComments((prev) =>
+          prev.map((c) => {
+            if (c._id === data.parentComment) {
+              return { ...c, replies: (c.replies || []).filter((r) => r._id !== data.commentId) };
+            }
+            return c;
+          })
+        );
+      } else {
+        // Top-level comment deleted
+        setComments((prev) => prev.filter((c) => c._id !== data.commentId));
+      }
+    });
+
+    // Comment updated
+    socket.on("update-comment", (data: { diaryId: string; comment: Comment }) => {
+      if (data.diaryId !== id) return;
+      const updated = data.comment;
+
+      if (updated.parentComment) {
+        // Update reply
+        setComments((prev) =>
+          prev.map((c) => {
+            if (c._id === updated.parentComment) {
+              return {
+                ...c,
+                replies: (c.replies || []).map((r) =>
+                  r._id === updated._id ? { ...r, content: updated.content } : r
+                ),
+              };
+            }
+            return c;
+          })
+        );
+      } else {
+        // Update top-level comment
+        setComments((prev) =>
+          prev.map((c) =>
+            c._id === updated._id ? { ...c, content: updated.content } : c
+          )
+        );
+      }
+    });
+
+    // Comment reaction changed
+    socket.on("comment-reaction", (data: { diaryId: string; commentId: string; reactions: { user: string; emoji: string }[] }) => {
+      if (data.diaryId !== id) return;
+      setComments((prev) =>
+        prev.map((c) => {
+          if (c._id === data.commentId) return { ...c, reactions: data.reactions };
+          if (c.replies?.length) {
+            return {
+              ...c,
+              replies: c.replies.map((r) =>
+                r._id === data.commentId ? { ...r, reactions: data.reactions } : r
+              ),
+            };
+          }
+          return c;
+        })
+      );
+    });
+
+    // Diary reaction changed
+    socket.on("diary-reaction", (data: { diaryId: string; reactions: { user: string; emoji: string }[] }) => {
+      if (data.diaryId !== id) return;
+      setDiary((prev) => (prev ? { ...prev, reactions: data.reactions } : prev));
+    });
+
+    socket.on("disconnect", () => {
+      console.log("❌ Socket disconnected");
+    });
+
+    return () => {
+      socket.emit("leave-diary", id);
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [id]);
+
   const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) return;
@@ -101,7 +231,7 @@ export default function DiaryDetailPage() {
         token
       );
       setCommentText("");
-      fetchComments();
+      // Real-time update via Socket.IO
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : String(err));
     } finally {
@@ -125,7 +255,7 @@ export default function DiaryDetailPage() {
       setReplyText("");
       setReplyingTo(null);
       setExpandedReplies((prev) => new Set(prev).add(parentId));
-      fetchComments();
+      // Real-time update via Socket.IO
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : String(err));
     } finally {
@@ -144,7 +274,7 @@ export default function DiaryDetailPage() {
       );
       setEditingCommentId(null);
       setEditText("");
-      fetchComments();
+      // Real-time update via Socket.IO
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : String(err));
     } finally {
@@ -160,7 +290,7 @@ export default function DiaryDetailPage() {
         { method: "DELETE" },
         token
       );
-      fetchComments();
+      // Real-time update via Socket.IO
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : String(err));
     }
@@ -169,14 +299,12 @@ export default function DiaryDetailPage() {
   const handleDiaryReact = async (emoji: string) => {
     if (!token) return alert("Please login to react!");
     try {
-      const res = await apiFetch(
+      await apiFetch(
         `/diaries/${id}/react`,
         { method: "POST", body: JSON.stringify({ emoji }) },
         token
       );
-      setDiary((prev) =>
-        prev ? { ...prev, reactions: res.data.reactions } : prev
-      );
+      // Real-time update via Socket.IO
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : String(err));
     }
@@ -185,18 +313,12 @@ export default function DiaryDetailPage() {
   const handleCommentReact = async (commentId: string, emoji: string) => {
     if (!token) return alert("Please login to react!");
     try {
-      const res = await apiFetch(
+      await apiFetch(
         `/diaries/${id}/comments/${commentId}/react`,
         { method: "POST", body: JSON.stringify({ emoji }) },
         token
       );
-      const updateReactions = (list: Comment[]): Comment[] =>
-        list.map((c) => {
-          if (c._id === commentId) return { ...c, reactions: res.data.reactions };
-          if (c.replies?.length) return { ...c, replies: updateReactions(c.replies) };
-          return c;
-        });
-      setComments(updateReactions);
+      // Real-time update via Socket.IO
       setCommentEmojiOpen(null);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : String(err));
@@ -276,21 +398,24 @@ export default function DiaryDetailPage() {
   const isOwner = user && diary.author?._id === user._id;
 
   return (
-    <div>
+    <div className="animate-fade-in">
       {/* Back link */}
       <Link
         href={isOwner ? "/dashboard" : `/#diary-${diary._id}`}
-        className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors mb-4"
+        className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors mb-4 group"
       >
-        {"\u2190"} {isOwner ? "Back to Dashboard" : "Back to Explore"}
+        <span className="group-hover:-translate-x-0.5 transition-transform">←</span> {isOwner ? "Back to Dashboard" : "Back to Explore"}
       </Link>
 
       {/* Article */}
-      <article className="card">
+      <article className="card overflow-hidden">
+        {/* Gradient accent bar */}
+        <div className="gradient-bg h-1 -mx-6 -mt-6 mb-5" style={{ marginLeft: "-1.5rem", marginRight: "-1.5rem", marginTop: "-1.5rem" }} />
+
         <div className="flex items-start justify-between gap-3">
-          <h1 className="text-2xl font-bold text-slate-800">{diary.title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-800 leading-tight">{diary.title}</h1>
           <span className={diary.isPublic ? "badge-public" : "badge-private"}>
-            {diary.isPublic ? "\uD83C\uDF10 Public" : <><img src="/icons/icons8-lock-30.png" alt="" className="w-3.5 h-3.5 inline mr-0.5" />Private</>}
+            {diary.isPublic ? "🌐 Public" : "🔒 Private"}
           </span>
         </div>
 
@@ -330,6 +455,33 @@ export default function DiaryDetailPage() {
         <div className="text-slate-700 whitespace-pre-wrap leading-relaxed">
           {diary.content}
         </div>
+
+        {/* Diary Images Gallery */}
+        {diary.images?.length > 0 && (
+          <div className="mt-5">
+            {diary.images.length === 1 ? (
+              <a href={diary.images[0].url} target="_blank" rel="noopener noreferrer" className="block rounded-xl overflow-hidden border border-slate-200 hover:shadow-lg transition-shadow">
+                <img src={diary.images[0].url} alt="" className="w-full max-h-[500px] object-cover hover:opacity-95 transition-opacity" />
+              </a>
+            ) : diary.images.length === 2 ? (
+              <div className="grid grid-cols-2 gap-1.5 rounded-xl overflow-hidden">
+                {diary.images.map((img) => (
+                  <a key={img.publicId} href={img.url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden hover:opacity-95 transition-opacity">
+                    <img src={img.url} alt="" className="w-full h-56 sm:h-64 object-cover" />
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 rounded-xl overflow-hidden">
+                {diary.images.map((img) => (
+                  <a key={img.publicId} href={img.url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden group/img">
+                    <img src={img.url} alt="" className="w-full h-48 sm:h-56 object-cover group-hover/img:scale-105 transition-transform duration-300" />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Diary Reactions - Facebook style */}
         {diary.isPublic &&
@@ -426,12 +578,16 @@ export default function DiaryDetailPage() {
         {token ? (
           diary.isPublic ? (
             <div className="flex gap-2 mb-6 items-start">
-              <div
-                className="avatar"
-                style={{ width: 32, height: 32, fontSize: 13, flexShrink: 0 }}
-              >
-                {user?.username?.charAt(0).toUpperCase()}
-              </div>
+              {user?.avatar ? (
+                <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full object-cover border border-slate-200" style={{ flexShrink: 0 }} />
+              ) : (
+                <div
+                  className="avatar"
+                  style={{ width: 32, height: 32, fontSize: 13, flexShrink: 0 }}
+                >
+                  {user?.username?.charAt(0).toUpperCase()}
+                </div>
+              )}
               <form onSubmit={handleComment} className="flex-1 flex gap-2">
                 <input
                   id="comment-input"
@@ -855,17 +1011,21 @@ export default function DiaryDetailPage() {
                       {/* Reply form */}
                       {replyingTo === c._id && (
                         <div className="flex gap-2 items-start mt-2 ml-1">
-                          <div
-                            className="avatar"
-                            style={{
-                              width: 24,
-                              height: 24,
-                              fontSize: 10,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {user?.username?.charAt(0).toUpperCase()}
-                          </div>
+                          {user?.avatar ? (
+                            <img src={user.avatar} alt={user.username} className="w-6 h-6 rounded-full object-cover border border-slate-200" style={{ flexShrink: 0 }} />
+                          ) : (
+                            <div
+                              className="avatar"
+                              style={{
+                                width: 24,
+                                height: 24,
+                                fontSize: 10,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {user?.username?.charAt(0).toUpperCase()}
+                            </div>
+                          )}
                           <form
                             onSubmit={(e) => handleReply(e, c._id)}
                             className="flex-1 flex gap-2"

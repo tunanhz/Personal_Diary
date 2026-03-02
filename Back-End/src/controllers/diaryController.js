@@ -1,5 +1,24 @@
 ﻿const Diary = require("../models/Diary");
 const Comment = require("../models/Comment");
+const cloudinary = require("../config/cloudinary");
+const { getIO } = require("../socket");
+
+// Helper: upload buffer to Cloudinary
+const uploadToCloudinary = (buffer, folder = "personal-diary/diaries") => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        transformation: [{ quality: "auto", fetch_format: "auto" }],
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    );
+    stream.end(buffer);
+  });
+};
 
 // @desc    Create a new diary entry
 // @route   POST /api/diaries
@@ -8,11 +27,35 @@ const createDiary = async (req, res, next) => {
   try {
     const { title, content, isPublic, tags } = req.body;
 
+    // Upload images to Cloudinary if any
+    let images = [];
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map((file) =>
+        uploadToCloudinary(file.buffer)
+      );
+      const results = await Promise.all(uploadPromises);
+      images = results.map((r) => ({
+        url: r.secure_url,
+        publicId: r.public_id,
+      }));
+    }
+
+    // Parse tags nếu gửi dưới dạng string (từ FormData)
+    let parsedTags = tags || [];
+    if (typeof tags === "string") {
+      try {
+        parsedTags = JSON.parse(tags);
+      } catch {
+        parsedTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+      }
+    }
+
     const diary = await Diary.create({
       title,
       content,
-      isPublic: isPublic || false,
-      tags: tags || [],
+      isPublic: isPublic === "true" || isPublic === true || false,
+      tags: parsedTags,
+      images,
       author: req.user._id,
     });
 
@@ -129,12 +172,63 @@ const updateDiary = async (req, res, next) => {
       });
     }
 
-    const { title, content, isPublic, tags } = req.body;
+    const { title, content, isPublic, tags, removeImageIds } = req.body;
 
     diary.title = title !== undefined ? title : diary.title;
     diary.content = content !== undefined ? content : diary.content;
-    diary.isPublic = isPublic !== undefined ? isPublic : diary.isPublic;
-    diary.tags = tags !== undefined ? tags : diary.tags;
+    diary.isPublic = isPublic !== undefined
+      ? (isPublic === "true" || isPublic === true)
+      : diary.isPublic;
+
+    // Parse tags nếu gửi dưới dạng string (từ FormData)
+    if (tags !== undefined) {
+      if (typeof tags === "string") {
+        try {
+          diary.tags = JSON.parse(tags);
+        } catch {
+          diary.tags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+        }
+      } else {
+        diary.tags = tags;
+      }
+    }
+
+    // Remove images nếu có
+    if (removeImageIds) {
+      let idsToRemove = removeImageIds;
+      if (typeof removeImageIds === "string") {
+        try {
+          idsToRemove = JSON.parse(removeImageIds);
+        } catch {
+          idsToRemove = [removeImageIds];
+        }
+      }
+      // Delete from Cloudinary
+      const deletePromises = diary.images
+        .filter((img) => idsToRemove.includes(img.publicId))
+        .map((img) =>
+          cloudinary.uploader.destroy(img.publicId).catch(() => {})
+        );
+      await Promise.all(deletePromises);
+
+      // Remove from array
+      diary.images = diary.images.filter(
+        (img) => !idsToRemove.includes(img.publicId)
+      );
+    }
+
+    // Upload new images nếu có
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map((file) =>
+        uploadToCloudinary(file.buffer)
+      );
+      const results = await Promise.all(uploadPromises);
+      const newImages = results.map((r) => ({
+        url: r.secure_url,
+        publicId: r.public_id,
+      }));
+      diary.images = [...diary.images, ...newImages];
+    }
 
     await diary.save();
 
@@ -175,7 +269,15 @@ const deleteDiary = async (req, res, next) => {
     // XÃ³a táº¥t cáº£ comments liÃªn quan
     await Comment.deleteMany({ diary: diary._id });
 
-    // XÃ³a diary
+    // Delete images from Cloudinary
+    if (diary.images && diary.images.length > 0) {
+      const deletePromises = diary.images.map((img) =>
+        cloudinary.uploader.destroy(img.publicId).catch(() => {})
+      );
+      await Promise.all(deletePromises);
+    }
+
+    // Delete diary
     await diary.deleteOne();
 
     res.status(200).json({
@@ -338,6 +440,20 @@ const reactToDiary = async (req, res, next) => {
     const userReaction = diary.reactions.find(
       (r) => r.user.toString() === userId
     );
+
+    // Emit real-time event
+    const io = getIO();
+    io.to(`diary:${req.params.id}`).emit("diary-reaction", {
+      diaryId: req.params.id,
+      reactions: diary.reactions,
+      reactionSummary,
+    });
+    // Also emit to feed for explore page
+    io.to("feed").emit("feed-diary-reaction", {
+      diaryId: req.params.id,
+      reactions: diary.reactions,
+      reactionSummary,
+    });
 
     res.status(200).json({
       success: true,

@@ -1,4 +1,5 @@
 const express = require("express");
+const http = require("http");
 const cors = require("cors");
 const path = require("path");
 const dotenv = require("dotenv");
@@ -8,11 +9,16 @@ dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
 const connectDB = require("./config/db");
 const errorHandler = require("./middlewares/errorHandler");
+const { initSocket } = require("./socket");
 
 // Connect to Database
 connectDB();
 
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+const io = initSocket(server);
 
 // Middleware
 app.use(cors());
@@ -33,8 +39,9 @@ app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🔌 Socket.IO ready`);
 });
 
-module.exports = app;
+module.exports = { app, server, io };

@@ -36,6 +36,18 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    refreshToken: {
+      type: String,
+      select: false, // không trả về khi query thông thường
+    },
+    resetPasswordOTP: {
+      type: String,
+      select: false,
+    },
+    resetPasswordExpires: {
+      type: Date,
+      select: false,
+    },
   },
   {
     timestamps: true,

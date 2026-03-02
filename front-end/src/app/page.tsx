@@ -1,9 +1,10 @@
 ﻿"use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { apiFetch } from "../lib/api";
 import { useAuth } from "../context/AuthProvider";
+import { io as socketIO, Socket } from "socket.io-client";
 
 type Reaction = { user: string; emoji: string };
 
@@ -13,6 +14,7 @@ type Diary = {
   content: string;
   author: { _id: string; username: string; fullName?: string; avatar?: string };
   tags: string[];
+  images: { url: string; publicId: string }[];
   reactions: Reaction[];
   commentCount: number;
   createdAt: string;
@@ -35,6 +37,7 @@ export default function PublicFeedPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const socketRef = useRef<Socket | null>(null);
 
   const fetchPublic = async (p: number, q: string) => {
     setLoading(true);
@@ -55,6 +58,31 @@ export default function PublicFeedPage() {
     fetchPublic(page, search);
   }, [page]);
 
+  // Socket.IO for real-time feed reactions
+  useEffect(() => {
+    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000";
+    const socket = socketIO(SOCKET_URL, { transports: ["websocket", "polling"] });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      socket.emit("join-feed");
+    });
+
+    socket.on("feed-diary-reaction", (data: { diaryId: string; reactions: Reaction[] }) => {
+      setDiaries((prev) =>
+        prev.map((d) =>
+          d._id === data.diaryId ? { ...d, reactions: data.reactions } : d
+        )
+      );
+    });
+
+    return () => {
+      socket.emit("leave-feed");
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, []);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
@@ -64,16 +92,12 @@ export default function PublicFeedPage() {
   const handleReact = async (diaryId: string, emoji: string) => {
     if (!token) return alert("Please login to react!");
     try {
-      const res = await apiFetch(
+      await apiFetch(
         `/diaries/${diaryId}/react`,
         { method: "POST", body: JSON.stringify({ emoji }) },
         token
       );
-      setDiaries((prev) =>
-        prev.map((d) =>
-          d._id === diaryId ? { ...d, reactions: res.data.reactions } : d
-        )
-      );
+      // Real-time update via Socket.IO
     } catch (err: any) {
       alert(err.message);
     }
@@ -103,17 +127,26 @@ export default function PublicFeedPage() {
 
   return (
     <div>
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-slate-800 flex items-center justify-center gap-2"><img src="/icons/icons8-open-book.gif" alt="" className="w-9 h-9" /> Explore Public Diaries</h1>
-        <p className="text-slate-500 mt-2">Read stories and thoughts shared by the community</p>
+      {/* Hero Section */}
+      <div className="text-center mb-10 relative">
+        <div className="absolute inset-0 hero-pattern rounded-3xl -z-10 opacity-60" />
+        <div className="py-6">
+          <div className="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-full px-4 py-1.5 text-sm text-indigo-600 font-medium mb-4 animate-fade-in">
+            Discover stories from the community
+          </div>
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-800 animate-fade-in-delay-1">
+            Explore <span className="gradient-text">Public Diaries</span>
+          </h1>
+          <p className="text-slate-500 mt-3 text-lg max-w-xl mx-auto animate-fade-in-delay-2">Read stories and thoughts shared by writers around the world</p>
+        </div>
       </div>
 
-      <form onSubmit={handleSearch} className="flex gap-0 mb-8 max-w-xl mx-auto">
+      <form onSubmit={handleSearch} className="flex gap-0 mb-8 max-w-xl mx-auto animate-fade-in-delay-2">
         <div className="relative flex-1">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{"\uD83D\uDD0D"}</span>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search diaries..." className="w-full h-11 pl-10 pr-4 border-1.5 border-slate-200 rounded-l-full bg-white text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search diaries by title..." className="w-full h-12 pl-10 pr-4 border-1.5 border-slate-200 rounded-l-2xl bg-white text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
         </div>
-        <button type="submit" className="h-11 px-6 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold rounded-r-full transition-colors">Search</button>
+        <button type="submit" className="h-12 px-7 gradient-bg text-white text-sm font-semibold rounded-r-2xl hover:shadow-lg hover:shadow-indigo-200/50 transition-all">Search</button>
       </form>
 
       {loading ? (
@@ -131,39 +164,115 @@ export default function PublicFeedPage() {
         </div>
       ) : diaries.length === 0 ? (
         <div className="empty-state">
-          <div className="icon">{"\uD83D\uDCED"}</div>
+          <div className="icon">📭</div>
           <h3>No public diaries found</h3>
           <p>Be the first to share your story with the world!</p>
         </div>
       ) : (
         <>
-          <ul className="divide-y divide-slate-200">
+          <div className="grid gap-4">
             {diaries.map((d) => {
               const summary = getReactionSummary(d.reactions);
               const totalReactions = d.reactions?.length || 0;
               const userEmoji = getUserReaction(d.reactions);
               return (
-                <li key={d._id} id={`diary-${d._id}`} className="py-4 first:pt-0 last:pb-0 scroll-mt-24">
+                <div key={d._id} id={`diary-${d._id}`} className="card scroll-mt-24 animate-fade-in">
                   <div className="flex items-start gap-3">
                     <Link href={`/user/${d.author?._id}`} title={d.author?.fullName || d.author?.username} style={{ flexShrink: 0 }}>
                     {d.author?.avatar ? (
-                      <img src={d.author.avatar} alt={d.author.username} className="w-8 h-8 rounded-full object-cover border border-slate-200 mt-0.5 hover:ring-2 hover:ring-indigo-300 transition-all" />
+                      <img src={d.author.avatar} alt={d.author.username} className="w-10 h-10 rounded-full object-cover border-2 border-indigo-100 shadow-sm hover:ring-2 hover:ring-indigo-300 transition-all" />
                     ) : (
-                      <span className="avatar mt-0.5 hover:ring-2 hover:ring-indigo-300 transition-all" style={{ width: "2rem", height: "2rem", fontSize: "0.75rem" }}>
+                      <span className="avatar hover:ring-2 hover:ring-indigo-300 transition-all" style={{ width: "2.5rem", height: "2.5rem", fontSize: "0.85rem" }}>
                         {d.author?.username?.charAt(0).toUpperCase()}
                       </span>
                     )}
                     </Link>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Link href={`/diary/${d._id}`} className="font-semibold text-slate-800 hover:text-indigo-600 transition-colors">{d.title}</Link>
-                        <span className="text-xs text-slate-400">by <Link href={`/user/${d.author?._id}`} className="font-medium text-slate-500 hover:text-indigo-600 transition-colors">{d.author?.fullName || d.author?.username}</Link></span>
-                        <span className="text-xs text-slate-300">{"\u2022"}</span>
+                        <Link href={`/user/${d.author?._id}`} className="font-semibold text-sm text-slate-700 hover:text-indigo-600 transition-colors">{d.author?.fullName || d.author?.username}</Link>
+                        <span className="text-xs text-slate-300">•</span>
                         <span className="text-xs text-slate-400">{new Date(d.createdAt).toLocaleDateString()}</span>
                       </div>
-                      <p className="text-sm text-slate-500 mt-1 leading-relaxed">{d.content.slice(0, 180)}{d.content.length > 180 ? "..." : ""}</p>
+                      <Link href={`/diary/${d._id}`} className="block mt-1">
+                        <h3 className="font-bold text-lg text-slate-800 hover:text-indigo-600 transition-colors leading-snug">{d.title}</h3>
+                      </Link>
+                      <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">{d.content.slice(0, 200)}{d.content.length > 200 ? "..." : ""}</p>
+
+                      {/* Diary Images - Facebook style gallery */}
+                      {d.images?.length > 0 && (
+                        <Link href={`/diary/${d._id}`} className="block mt-3 rounded-xl overflow-hidden border border-slate-200">
+                          {d.images.length === 1 ? (
+                            <img
+                              src={d.images[0].url}
+                              alt=""
+                              className="w-full max-h-80 object-cover hover:opacity-95 transition-opacity"
+                            />
+                          ) : d.images.length === 2 ? (
+                            <div className="grid grid-cols-2 gap-0.5">
+                              {d.images.map((img) => (
+                                <img
+                                  key={img.publicId}
+                                  src={img.url}
+                                  alt=""
+                                  className="w-full h-48 object-cover hover:opacity-95 transition-opacity"
+                                />
+                              ))}
+                            </div>
+                          ) : d.images.length === 3 ? (
+                            <div className="grid grid-cols-2 gap-0.5">
+                              <img
+                                src={d.images[0].url}
+                                alt=""
+                                className="w-full h-full object-cover row-span-2 hover:opacity-95 transition-opacity"
+                                style={{ minHeight: "240px" }}
+                              />
+                              <img
+                                src={d.images[1].url}
+                                alt=""
+                                className="w-full h-[119px] object-cover hover:opacity-95 transition-opacity"
+                              />
+                              <img
+                                src={d.images[2].url}
+                                alt=""
+                                className="w-full h-[119px] object-cover hover:opacity-95 transition-opacity"
+                              />
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-0.5">
+                              <img
+                                src={d.images[0].url}
+                                alt=""
+                                className="w-full h-[140px] object-cover hover:opacity-95 transition-opacity"
+                              />
+                              <img
+                                src={d.images[1].url}
+                                alt=""
+                                className="w-full h-[140px] object-cover hover:opacity-95 transition-opacity"
+                              />
+                              <img
+                                src={d.images[2].url}
+                                alt=""
+                                className="w-full h-[140px] object-cover hover:opacity-95 transition-opacity"
+                              />
+                              <div className="relative">
+                                <img
+                                  src={d.images[3].url}
+                                  alt=""
+                                  className="w-full h-[140px] object-cover"
+                                />
+                                {d.images.length > 4 && (
+                                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-2xl font-bold">
+                                    +{d.images.length - 4}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </Link>
+                      )}
+
                       {d.tags?.length > 0 && (
-                        <div className="flex gap-1 mt-1.5">
+                        <div className="flex gap-1.5 mt-2 flex-wrap">
                           {d.tags.map((t) => (<span key={t} className="tag">{t}</span>))}
                         </div>
                       )}
@@ -214,16 +323,16 @@ export default function PublicFeedPage() {
                       </div>
                     </div>
                   </div>
-                </li>
+                </div>
               );
             })}
-          </ul>
+          </div>
 
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-3 mt-8">
-              <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="btn-secondary">{"\u2190"} Previous</button>
-              <span className="text-sm font-medium text-slate-600">Page {page} of {totalPages}</span>
-              <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="btn-secondary">Next {"\u2192"}</button>
+              <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="btn-secondary">← Previous</button>
+              <span className="text-sm font-medium text-slate-500 bg-slate-100 px-4 py-1.5 rounded-full">Page {page} of {totalPages}</span>
+              <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="btn-secondary">Next →</button>
             </div>
           )}
         </>

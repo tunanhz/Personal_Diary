@@ -21,6 +21,12 @@ const diarySchema = new mongoose.Schema(
       type: Boolean,
       default: false, // Mặc định là private
     },
+    images: [
+      {
+        url: { type: String, required: true },
+        publicId: { type: String, required: true },
+      },
+    ],
     tags: [
       {
         type: String,
