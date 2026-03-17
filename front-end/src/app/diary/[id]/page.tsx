@@ -13,7 +13,8 @@ type Diary = {
   _id: string;
   title: string;
   content: string;
-  isPublic: boolean;
+  visibility: "public" | "private" | "friends";
+  isPublic?: boolean; // Legacy support
   tags: string[];
   images: { url: string; publicId: string }[];
   reactions: { user: string; emoji: string }[];
@@ -414,8 +415,8 @@ export default function DiaryDetailPage() {
 
         <div className="flex items-start justify-between gap-3">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-800 leading-tight">{diary.title}</h1>
-          <span className={diary.isPublic ? "badge-public" : "badge-private"}>
-            {diary.isPublic ? "🌐 Public" : "🔒 Private"}
+          <span className={diary.visibility === "public" ? "badge-public" : diary.visibility === "friends" ? "badge-friends" : "badge-private"}>
+            {diary.visibility === "public" ? "🌐 Public" : diary.visibility === "friends" ? "👥 Friends" : "🔒 Private"}
           </span>
         </div>
 
@@ -484,7 +485,7 @@ export default function DiaryDetailPage() {
         )}
 
         {/* Diary Reactions - Facebook style */}
-        {diary.isPublic &&
+        {(diary.visibility === "public" || diary.visibility === "friends" || isOwner) &&
           (() => {
             const summary = getReactionSummary(diary.reactions);
             const totalReactions = diary.reactions?.length || 0;
@@ -493,20 +494,16 @@ export default function DiaryDetailPage() {
             return (
               <>
                 {totalReactions > 0 && (
-                  <div className="flex items-center gap-1 mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500">
-                    <div className="flex -space-x-0.5">
-                      {Object.keys(summary)
-                        .slice(0, 3)
-                        .map((emoji) => (
-                          <span
-                            key={emoji}
-                            className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-full border border-white shadow-sm text-[12px]"
-                          >
-                            {emoji}
-                          </span>
-                        ))}
-                    </div>
-                    <span className="ml-0.5">{totalReactions}</span>
+                  <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex-wrap">
+                    {Object.entries(summary).map(([emoji, count]) => (
+                      <div
+                        key={emoji}
+                        className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded-full border border-slate-200 shadow-sm"
+                      >
+                        <span className="text-[12px]">{emoji}</span>
+                        <span className="font-medium text-slate-600">{typeof count === 'number' ? count : String(count)}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
 
@@ -576,7 +573,7 @@ export default function DiaryDetailPage() {
         </h2>
 
         {token ? (
-          diary.isPublic ? (
+          (diary.visibility === "public" || diary.visibility === "friends" || isOwner) ? (
             <div className="flex gap-2 mb-6 items-start">
               {user?.avatar ? (
                 <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full object-cover border border-slate-200" style={{ flexShrink: 0 }} />
@@ -702,22 +699,15 @@ export default function DiaryDetailPage() {
                           </div>
 
                           {totalReactions > 0 && (
-                            <div className="absolute -bottom-2.5 right-2 flex items-center gap-0.5 bg-white rounded-full shadow-sm border border-slate-100 px-1.5 py-0.5 text-xs">
-                              {Object.entries(cSummary)
-                                .slice(0, 3)
-                                .map(([emoji]) => (
-                                  <span key={emoji} style={{ fontSize: 11 }}>
-                                    {emoji}
+                            <div className="absolute -bottom-2.5 right-2 flex items-center gap-1">
+                              {Object.entries(cSummary).map(([emoji, count]) => (
+                                <div key={emoji} className="flex items-center gap-0.5 bg-white rounded-full shadow-sm border border-slate-100 px-1.5 py-0.5 text-xs">
+                                  <span style={{ fontSize: 11 }}>{emoji}</span>
+                                  <span className="text-slate-500 font-medium ml-0.5" style={{ fontSize: 11 }}>
+                                    {typeof count === 'number' ? count : String(count)}
                                   </span>
-                                ))}
-                              {totalReactions > 1 && (
-                                <span
-                                  className="text-slate-500 font-medium ml-0.5"
-                                  style={{ fontSize: 11 }}
-                                >
-                                  {totalReactions}
-                                </span>
-                              )}
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -764,7 +754,7 @@ export default function DiaryDetailPage() {
                             </div>
                           </div>
 
-                          {token && diary.isPublic && (
+                          {token && (diary.visibility === "public" || diary.visibility === "friends" || isOwner) && (
                             <button
                               onClick={() => {
                                 setReplyingTo(
@@ -900,25 +890,15 @@ export default function DiaryDetailPage() {
                                           </p>
                                         </div>
                                         {rTotalReactions > 0 && (
-                                          <div className="absolute -bottom-2 right-2 flex items-center gap-0.5 bg-white rounded-full shadow-sm border border-slate-100 px-1 py-0.5 text-xs">
-                                            {Object.entries(rSummary)
-                                              .slice(0, 3)
-                                              .map(([emoji]) => (
-                                                <span
-                                                  key={emoji}
-                                                  style={{ fontSize: 10 }}
-                                                >
-                                                  {emoji}
+                                          <div className="absolute -bottom-2 right-2 flex items-center gap-1">
+                                            {Object.entries(rSummary).map(([emoji, count]) => (
+                                              <div key={emoji} className="flex items-center gap-0.5 bg-white rounded-full shadow-sm border border-slate-100 px-1 py-0.5 text-xs">
+                                                <span style={{ fontSize: 10 }}>{emoji}</span>
+                                                <span className="text-slate-500 font-medium ml-0.5" style={{ fontSize: 10 }}>
+                                                  {typeof count === 'number' ? count : String(count)}
                                                 </span>
-                                              ))}
-                                            {rTotalReactions > 1 && (
-                                              <span
-                                                className="text-slate-500 font-medium"
-                                                style={{ fontSize: 10 }}
-                                              >
-                                                {rTotalReactions}
-                                              </span>
-                                            )}
+                                              </div>
+                                            ))}
                                           </div>
                                         )}
                                       </div>
@@ -998,6 +978,20 @@ export default function DiaryDetailPage() {
                                               Delete
                                             </button>
                                           )}
+
+                                        {token && (diary.visibility === "public" || diary.visibility === "friends" || isOwner) && (
+                                          <button
+                                            onClick={() => {
+                                              setReplyingTo(
+                                                replyingTo === c._id ? r._id : c._id
+                                              );
+                                              setReplyText(`@${r.author?.username} `);
+                                            }}
+                                            className="text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
+                                          >
+                                            Reply
+                                          </button>
+                                        )}
                                       </div>
                                     )}
                                   </div>
@@ -1009,7 +1003,7 @@ export default function DiaryDetailPage() {
                       )}
 
                       {/* Reply form */}
-                      {replyingTo === c._id && (
+                      {replyingTo && (replyingTo === c._id || (c.replies && c.replies.some(r => r._id === replyingTo))) && (
                         <div className="flex gap-2 items-start mt-2 ml-1">
                           {user?.avatar ? (
                             <img src={user.avatar} alt={user.username} className="w-6 h-6 rounded-full object-cover border border-slate-200" style={{ flexShrink: 0 }} />
@@ -1027,13 +1021,13 @@ export default function DiaryDetailPage() {
                             </div>
                           )}
                           <form
-                            onSubmit={(e) => handleReply(e, c._id)}
+                            onSubmit={(e) => handleReply(e, replyingTo!)}
                             className="flex-1 flex gap-2"
                           >
                             <input
                               value={replyText}
                               onChange={(e) => setReplyText(e.target.value)}
-                              placeholder={`Reply to ${c.author?.username}...`}
+                              placeholder="Write a reply..."
                               className="input flex-1 text-sm py-1.5 rounded-full"
                               required
                               autoFocus

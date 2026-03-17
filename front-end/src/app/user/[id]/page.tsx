@@ -16,6 +16,8 @@ type UserProfile = {
 
 type Reaction = { user: string; emoji: string };
 
+type FriendshipStatus = "none" | "pending_sent" | "pending_received" | "friends";
+
 type Diary = {
   _id: string;
   title: string;
@@ -49,17 +51,49 @@ export default function UserProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [friendStatus, setFriendStatus] = useState<FriendshipStatus>("none");
+  const [friendshipId, setFriendshipId] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     try {
       const res = await apiFetch(`/auth/users/${id}`);
       setProfile(res.data);
+
+      if (token && currentUser && currentUser._id !== id) {
+        // Fetch friend status
+        const [friendsRes, requestsRes] = await Promise.all([
+          apiFetch("/friends", {}, token),
+          apiFetch("/friends/requests", {}, token)
+        ]);
+
+        const isFriend = friendsRes.data.some((f: any) => f._id === id);
+        if (isFriend) {
+          setFriendStatus("friends");
+          return;
+        }
+
+        const sentReq = requestsRes.data.sent.find((r: any) => r.recipient._id === id);
+        if (sentReq) {
+          setFriendStatus("pending_sent");
+          setFriendshipId(sentReq._id);
+          return;
+        }
+
+        const receivedReq = requestsRes.data.received.find((r: any) => r.requester._id === id);
+        if (receivedReq) {
+          setFriendStatus("pending_received");
+          setFriendshipId(receivedReq._id);
+          return;
+        }
+
+        setFriendStatus("none");
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "User not found");
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, token, currentUser]);
 
   const fetchDiaries = useCallback(
     async (p: number) => {
@@ -79,12 +113,46 @@ export default function UserProfilePage() {
   );
 
   useEffect(() => {
+    if (!token && currentUser === undefined) return; // Wait for auth resolution
     fetchProfile();
-  }, [fetchProfile]);
+  }, [fetchProfile, token, currentUser]);
 
   useEffect(() => {
     fetchDiaries(page);
   }, [fetchDiaries, page]);
+
+  const handleAddFriend = async () => {
+    if (!token) return alert("Please login to add friends!");
+    try {
+      const res = await apiFetch(`/friends/request/${id}`, { method: "POST" }, token);
+      setFriendStatus("pending_sent");
+      setFriendshipId(res.data._id);
+    } catch (err: any) {
+      alert(err.message || "Failed to send request");
+    }
+  };
+
+  const handleAcceptFriend = async () => {
+    if (!token || !friendshipId) return;
+    try {
+      await apiFetch(`/friends/accept/${friendshipId}`, { method: "POST" }, token);
+      setFriendStatus("friends");
+    } catch (err: any) {
+      alert(err.message || "Failed to accept request");
+    }
+  };
+
+  const handleRemoveFriend = async () => {
+    const confirmRemove = confirm("Are you sure you want to remove this friend?");
+    if (!confirmRemove || !token) return;
+    try {
+      await apiFetch(`/friends/remove/${id}`, { method: "DELETE" }, token);
+      setFriendStatus("none");
+      setFriendshipId(null);
+    } catch (err: any) {
+      alert(err.message || "Failed to remove friend");
+    }
+  };
 
   const handleReact = async (diaryId: string, emoji: string) => {
     if (!token) return alert("Please login to react!");
@@ -214,14 +282,37 @@ export default function UserProfilePage() {
             </span>
           </div>
 
-          {isMe && (
+          {isMe ? (
             <Link
               href="/profile"
               className="mt-3 text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
             >
               ✏️ Edit my profile
             </Link>
-          )}
+          ) : token ? (
+            <div className="mt-4 flex gap-2">
+              {friendStatus === "none" && (
+                <button onClick={handleAddFriend} className="btn-primary py-1.5 px-3 text-xs">
+                  👋 Add Friend
+                </button>
+              )}
+              {friendStatus === "pending_sent" && (
+                <button disabled className="btn-secondary py-1.5 px-3 text-xs opacity-70 cursor-not-allowed">
+                  ⏳ Request Sent
+                </button>
+              )}
+              {friendStatus === "pending_received" && (
+                <button onClick={handleAcceptFriend} className="btn-primary py-1.5 px-3 text-xs bg-emerald-500 hover:bg-emerald-600 text-white border-0 shadow-md">
+                  ✔️ Accept Request
+                </button>
+              )}
+              {friendStatus === "friends" && (
+                <button onClick={handleRemoveFriend} className="btn-secondary py-1.5 px-3 text-xs text-slate-500 hover:text-red-500 hover:bg-red-50 hover:border-red-200">
+                  👥 Friends ✓
+                </button>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -322,19 +413,14 @@ export default function UserProfilePage() {
                     <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
                       <div className="flex items-center gap-1">
                         {totalReactions > 0 && (
-                          <>
-                            <div className="flex -space-x-0.5">
-                              {Object.keys(summary).slice(0, 3).map((emoji) => (
-                                <span
-                                  key={emoji}
-                                  className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-full border border-white shadow-sm text-[12px]"
-                                >
-                                  {emoji}
-                                </span>
-                              ))}
-                            </div>
-                            <span className="ml-0.5">{totalReactions}</span>
-                          </>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {Object.entries(summary).map(([emoji, count]) => (
+                              <div key={emoji} className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded-full border border-slate-200 shadow-sm">
+                                <span className="text-[12px]">{emoji}</span>
+                                <span className="font-medium text-slate-600">{typeof count === 'number' ? count : String(count)}</span>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
                       {d.commentCount > 0 && (

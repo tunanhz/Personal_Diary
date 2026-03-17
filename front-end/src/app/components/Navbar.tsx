@@ -40,6 +40,12 @@ export default function Navbar() {
               >
                 📝 My Diaries
               </Link>
+              <Link
+                href="/friends"
+                className="px-3.5 py-2 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all flex items-center gap-1.5"
+              >
+                👥 Friends
+              </Link>
 
               <div className="w-px h-5 bg-slate-200 mx-2" />
 
@@ -104,6 +110,9 @@ export default function Navbar() {
               <>
                 <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
                   📝 My Diaries
+                </Link>
+                <Link href="/friends" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
+                  👥 Friends
                 </Link>
                 <Link href="/profile" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all flex items-center gap-2">
                   {user.avatar ? (

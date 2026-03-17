@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
@@ -12,6 +12,7 @@ type Diary = {
   _id: string;
   title: string;
   content: string;
+  visibility: "public" | "friends";
   author: { _id: string; username: string; fullName?: string; avatar?: string };
   tags: string[];
   images: { url: string; publicId: string }[];
@@ -192,6 +193,10 @@ export default function PublicFeedPage() {
                         <Link href={`/user/${d.author?._id}`} className="font-semibold text-sm text-slate-700 hover:text-indigo-600 transition-colors">{d.author?.fullName || d.author?.username}</Link>
                         <span className="text-xs text-slate-300">•</span>
                         <span className="text-xs text-slate-400">{new Date(d.createdAt).toLocaleDateString()}</span>
+                        <span className="text-xs text-slate-300">•</span>
+                        <span className={d.visibility === "public" ? "badge-public" : "badge-friends"}>
+                          {d.visibility === "public" ? "🌍 Public" : "👥 Friends"}
+                        </span>
                       </div>
                       <Link href={`/diary/${d._id}`} className="block mt-1">
                         <h3 className="font-bold text-lg text-slate-800 hover:text-indigo-600 transition-colors leading-snug">{d.title}</h3>
@@ -281,14 +286,14 @@ export default function PublicFeedPage() {
                         <div className="flex items-center justify-between mt-2.5 text-xs text-slate-500">
                           <div className="flex items-center gap-1">
                             {totalReactions > 0 && (
-                              <>
-                                <div className="flex -space-x-0.5">
-                                  {Object.keys(summary).slice(0, 3).map((emoji) => (
-                                    <span key={emoji} className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-full border border-white shadow-sm text-[12px]">{emoji}</span>
-                                  ))}
-                                </div>
-                                <span className="ml-0.5">{totalReactions}</span>
-                              </>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {Object.entries(summary).map(([emoji, count]) => (
+                                  <div key={emoji} className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded-full border border-slate-200 shadow-sm">
+                                    <span className="text-[12px]">{emoji}</span>
+                                    <span className="font-medium text-slate-600">{typeof count === 'number' ? count : String(count)}</span>
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </div>
                           {d.commentCount > 0 && (

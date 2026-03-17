@@ -241,6 +241,17 @@ body {
   color: #64748b;
   border-radius: 9999px;
 }
+.badge-friends {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #2563eb;
+  border-radius: 9999px;
+}
 
 /* ===== AVATAR ===== */
 .avatar {

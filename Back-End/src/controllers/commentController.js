@@ -1,4 +1,4 @@
-﻿const Comment = require("../models/Comment");
+const Comment = require("../models/Comment");
 const Diary = require("../models/Diary");
 const { getIO } = require("../socket");
 
@@ -9,7 +9,7 @@ const addComment = async (req, res, next) => {
   try {
     const { content, parentComment } = req.body;
 
-    // Kiá»ƒm tra diary tá»“n táº¡i vÃ  lÃ  public
+    // Kiểm tra diary tồn tại và quyền comment
     const diary = await Diary.findById(req.params.diaryId);
 
     if (!diary) {
@@ -19,14 +19,34 @@ const addComment = async (req, res, next) => {
       });
     }
 
-    if (!diary.isPublic) {
-      return res.status(403).json({
-        success: false,
-        message: "Cannot comment on a private diary",
-      });
+    // Check visibility permissions
+    const userId = req.user._id.toString();
+    if (diary.visibility !== "public") {
+      if (diary.author.toString() !== userId) {
+        if (diary.visibility === "friends") {
+          const Friendship = require("../models/Friendship");
+          const isFriend = await Friendship.findOne({
+            $or: [
+              { requester: userId, recipient: diary.author, status: "accepted" },
+              { requester: diary.author, recipient: userId, status: "accepted" }
+            ]
+          });
+          if (!isFriend) {
+            return res.status(403).json({
+              success: false,
+              message: "This diary is for friends only",
+            });
+          }
+        } else {
+          return res.status(403).json({
+            success: false,
+            message: "Cannot comment on a private diary",
+          });
+        }
+      }
     }
 
-    // Náº¿u reply, kiá»ƒm tra parent comment tá»“n táº¡i
+    // Nếu reply, kiểm tra parent comment tồn tại
     if (parentComment) {
       const parent = await Comment.findById(parentComment);
       if (!parent || parent.diary.toString() !== req.params.diaryId) {
@@ -35,20 +55,39 @@ const addComment = async (req, res, next) => {
           message: "Parent comment not found in this diary",
         });
       }
-      // KhÃ´ng cho reply vÃ o reply (chá»‰ 1 cáº¥p)
-      if (parent.parentComment) {
-        return res.status(400).json({
-          success: false,
-          message: "Cannot reply to a reply. Reply to the original comment instead.",
-        });
-      }
+      
+      // Nếu comment được reply là một reply, gán root parent của nó
+      // Điều này làm phẳng thread thành 1 cấp duy nhất
+      const actualParentId = parent.parentComment || parent._id;
+      
+      const comment = await Comment.create({
+        content,
+        diary: diary._id,
+        author: req.user._id,
+        parentComment: actualParentId,
+      });
+
+      // Populate author trước khi trả về
+      await comment.populate("author", "username fullName avatar");
+
+      // Emit real-time event
+      const io = getIO();
+      io.to(`diary:${diary._id.toString()}`).emit("new-comment", {
+        diaryId: diary._id.toString(),
+        comment: comment.toObject(),
+      });
+
+      return res.status(201).json({
+        success: true,
+        data: comment,
+      });
     }
 
     const comment = await Comment.create({
       content,
       diary: diary._id,
       author: req.user._id,
-      parentComment: parentComment || null,
+      parentComment: null,
     });
 
     // Populate author trÆ°á»›c khi tráº£ vá»
@@ -84,13 +123,31 @@ const getComments = async (req, res, next) => {
       });
     }
 
-    // Náº¿u diary private, chá»‰ chá»§ sá»Ÿ há»¯u má»›i xem Ä‘Æ°á»£c comments
-    if (!diary.isPublic) {
-      if (!req.user || diary.author.toString() !== req.user._id.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: "This diary is private",
-        });
+    // Nếu diary không public, kiểm tra quyền xem
+    if (diary.visibility !== "public") {
+      const isOwner = req.user && diary.author.toString() === req.user._id.toString();
+      
+      if (!isOwner) {
+        if (diary.visibility === "friends" && req.user) {
+          const Friendship = require("../models/Friendship");
+          const isFriend = await Friendship.findOne({
+            $or: [
+              { requester: req.user._id, recipient: diary.author, status: "accepted" },
+              { requester: diary.author, recipient: req.user._id, status: "accepted" }
+            ]
+          });
+          if (!isFriend) {
+            return res.status(403).json({
+              success: false,
+              message: "This diary is for friends only",
+            });
+          }
+        } else {
+          return res.status(403).json({
+            success: false,
+            message: "This diary is private or restricted",
+          });
+        }
       }
     }
 

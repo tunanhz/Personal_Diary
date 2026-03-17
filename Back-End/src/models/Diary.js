@@ -17,9 +17,10 @@ const diarySchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    isPublic: {
-      type: Boolean,
-      default: false, // Mặc định là private
+    visibility: {
+      type: String,
+      enum: ["public", "private", "friends"],
+      default: "private",
     },
     images: [
       {
@@ -55,6 +56,6 @@ const diarySchema = new mongoose.Schema(
 
 // Index để tìm kiếm nhanh
 diarySchema.index({ author: 1, createdAt: -1 });
-diarySchema.index({ isPublic: 1, createdAt: -1 });
+diarySchema.index({ visibility: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Diary", diarySchema);

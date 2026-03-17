@@ -14,7 +14,8 @@ type Diary = {
   _id: string;
   title: string;
   content: string;
-  isPublic: boolean;
+  visibility: "public" | "private" | "friends";
+  isPublic?: boolean; // backwards compatibility if needed
   tags: string[];
   images: DiaryImage[];
   createdAt: string;
@@ -31,7 +32,7 @@ export default function DashboardPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formTitle, setFormTitle] = useState("");
   const [formContent, setFormContent] = useState("");
-  const [formPublic, setFormPublic] = useState(false);
+  const [formVisibility, setFormVisibility] = useState<"public" | "private" | "friends">("private");
   const [formTags, setFormTags] = useState("");
   const [formImages, setFormImages] = useState<File[]>([]);
   const [formImagePreviews, setFormImagePreviews] = useState<string[]>([]);
@@ -62,7 +63,7 @@ export default function DashboardPage() {
     setEditingId(null);
     setFormTitle("");
     setFormContent("");
-    setFormPublic(false);
+    setFormVisibility("private");
     setFormTags("");
     setFormImages([]);
     setFormImagePreviews([]);
@@ -77,7 +78,7 @@ export default function DashboardPage() {
     setEditingId(d._id);
     setFormTitle(d.title);
     setFormContent(d.content);
-    setFormPublic(d.isPublic);
+    setFormVisibility(d.visibility || (d.isPublic ? "public" : "private"));
     setFormTags(d.tags?.join(", ") || "");
     setFormImages([]);
     setFormImagePreviews([]);
@@ -123,7 +124,7 @@ export default function DashboardPage() {
     const formData = new FormData();
     formData.append("title", formTitle);
     formData.append("content", formContent);
-    formData.append("isPublic", String(formPublic));
+    formData.append("visibility", formVisibility);
     formData.append(
       "tags",
       JSON.stringify(
@@ -351,18 +352,31 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <label className="flex items-center gap-2.5 text-sm cursor-pointer bg-slate-50 p-3 rounded-lg border border-slate-200">
-              <input
-                type="checkbox"
-                checked={formPublic}
-                onChange={(e) => setFormPublic(e.target.checked)}
-                className="w-4 h-4 accent-indigo-600"
-              />
-              <div>
-                <span className="font-medium text-slate-700">Make public</span>
-                <span className="text-slate-400 ml-1">(others can read &amp; comment)</span>
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <label className="block text-sm font-bold text-slate-700 mb-3">Who can see this?</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "private", label: "Private", icon: "🔒", desc: "Only you" },
+                  { value: "friends", label: "Friends", icon: "👥", desc: "Your friends" },
+                  { value: "public", label: "Public", icon: "🌍", desc: "Everyone" }
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setFormVisibility(opt.value as any)}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all ${
+                      formVisibility === opt.value
+                        ? "border-indigo-600 bg-indigo-50"
+                        : "border-transparent bg-white hover:border-slate-200"
+                    }`}
+                  >
+                    <span className="text-xl">{opt.icon}</span>
+                    <span className="text-xs font-bold text-slate-700">{opt.label}</span>
+                    <span className="text-[10px] text-slate-400 leading-none">{opt.desc}</span>
+                  </button>
+                ))}
               </div>
-            </label>
+            </div>
 
             <div className="flex gap-2">
               <button type="submit" disabled={formLoading} className="btn-primary">
@@ -416,8 +430,12 @@ export default function DashboardPage() {
                     >
                       {d.title}
                     </Link>
-                    <span className={d.isPublic ? "badge-public" : "badge-private"}>
-                      {d.isPublic ? "🌐 Public" : "🔒 Private"}
+                    <span className={
+                      d.visibility === "public" ? "badge-public" : 
+                      d.visibility === "friends" ? "badge-friends" : "badge-private"
+                    }>
+                      {d.visibility === "public" ? "🌍 Public" : 
+                       d.visibility === "friends" ? "👥 Friends" : "🔒 Private"}
                     </span>
                   </div>
 
@@ -461,9 +479,9 @@ export default function DashboardPage() {
                   <button
                     onClick={() => handleToggle(d._id)}
                     className="btn-ghost"
-                    title={d.isPublic ? "Make Private" : "Make Public"}
+                    title={`Current: ${d.visibility}. Click to toggle.`}
                   >
-                    {d.isPublic ? "🔒" : "🌐"}
+                    {d.visibility === "public" ? "🔒" : "🌍"}
                   </button>
                   <button
                     onClick={() => openEditForm(d)}

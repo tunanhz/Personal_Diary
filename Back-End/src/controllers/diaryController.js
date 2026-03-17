@@ -1,4 +1,4 @@
-﻿const Diary = require("../models/Diary");
+const Diary = require("../models/Diary");
 const Comment = require("../models/Comment");
 const cloudinary = require("../config/cloudinary");
 const { getIO } = require("../socket");
@@ -25,7 +25,7 @@ const uploadToCloudinary = (buffer, folder = "personal-diary/diaries") => {
 // @access  Private
 const createDiary = async (req, res, next) => {
   try {
-    const { title, content, isPublic, tags } = req.body;
+    const { title, content, visibility, isPublic, tags } = req.body;
 
     // Upload images to Cloudinary if any
     let images = [];
@@ -50,10 +50,17 @@ const createDiary = async (req, res, next) => {
       }
     }
 
+    let diaryVisibility = "private";
+    if (visibility) {
+      diaryVisibility = visibility;
+    } else if (isPublic !== undefined) {
+      diaryVisibility = (isPublic === "true" || isPublic === true) ? "public" : "private";
+    }
+
     const diary = await Diary.create({
       title,
       content,
-      isPublic: isPublic === "true" || isPublic === true || false,
+      visibility: diaryVisibility,
       tags: parsedTags,
       images,
       author: req.user._id,
@@ -80,12 +87,14 @@ const getMyDiaries = async (req, res, next) => {
     // Filter theo query params
     const filter = { author: req.user._id };
 
-    // Filter theo isPublic náº¿u cÃ³
-    if (req.query.isPublic !== undefined) {
-      filter.isPublic = req.query.isPublic === "true";
+    // Filter theo visibility hoặc isPublic
+    if (req.query.visibility) {
+      filter.visibility = req.query.visibility;
+    } else if (req.query.isPublic !== undefined) {
+      filter.visibility = req.query.isPublic === "true" ? "public" : "private";
     }
 
-    // TÃ¬m kiáº¿m theo title
+    // Tìm kiếm theo title
     if (req.query.search) {
       filter.title = { $regex: req.query.search, $options: "i" };
     }
@@ -131,13 +140,26 @@ const getDiaryById = async (req, res, next) => {
       });
     }
 
-    // Náº¿u diary private, chá»‰ chá»§ sá»Ÿ há»¯u má»›i Ä‘Æ°á»£c xem
-    if (!diary.isPublic) {
-      if (!req.user || diary.author._id.toString() !== req.user._id.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: "This diary is private",
-        });
+    // Nếu diary không public, kiểm tra quyền xem
+    if (diary.visibility !== "public") {
+      if (!req.user) {
+        return res.status(401).json({ success: false, message: "Not authorized to view this diary" });
+      }
+      if (diary.author._id.toString() !== req.user._id.toString()) {
+        if (diary.visibility === "friends") {
+          const Friendship = require("../models/Friendship");
+          const isFriend = await Friendship.findOne({
+            $or: [
+              { requester: req.user._id, recipient: diary.author._id, status: "accepted" },
+              { requester: diary.author._id, recipient: req.user._id, status: "accepted" }
+            ]
+          });
+          if (!isFriend) {
+            return res.status(403).json({ success: false, message: "This diary is for friends only" });
+          }
+        } else {
+          return res.status(403).json({ success: false, message: "This diary is private" });
+        }
       }
     }
 
@@ -164,7 +186,7 @@ const updateDiary = async (req, res, next) => {
       });
     }
 
-    // Chá»‰ chá»§ sá»Ÿ há»¯u má»›i Ä‘Æ°á»£c sá»­a
+    // Chỉ chủ sở hữu mới được sửa
     if (diary.author.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -172,13 +194,16 @@ const updateDiary = async (req, res, next) => {
       });
     }
 
-    const { title, content, isPublic, tags, removeImageIds } = req.body;
+    const { title, content, visibility, isPublic, tags, removeImageIds } = req.body;
 
     diary.title = title !== undefined ? title : diary.title;
     diary.content = content !== undefined ? content : diary.content;
-    diary.isPublic = isPublic !== undefined
-      ? (isPublic === "true" || isPublic === true)
-      : diary.isPublic;
+    
+    if (visibility !== undefined) {
+      diary.visibility = visibility;
+    } else if (isPublic !== undefined) {
+      diary.visibility = (isPublic === "true" || isPublic === true) ? "public" : "private";
+    }
 
     // Parse tags nếu gửi dưới dạng string (từ FormData)
     if (tags !== undefined) {
@@ -232,7 +257,7 @@ const updateDiary = async (req, res, next) => {
 
     await diary.save();
 
-    // Populate author trÆ°á»›c khi tráº£ vá»
+    // Populate author trước khi trả về
     await diary.populate("author", "username fullName avatar");
 
     res.status(200).json({
@@ -258,7 +283,7 @@ const deleteDiary = async (req, res, next) => {
       });
     }
 
-    // Chá»‰ chá»§ sá»Ÿ há»¯u má»›i Ä‘Æ°á»£c xÃ³a
+    // Chỉ chủ sở hữu mới được xóa
     if (diary.author.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -266,7 +291,7 @@ const deleteDiary = async (req, res, next) => {
       });
     }
 
-    // XÃ³a táº¥t cáº£ comments liÃªn quan
+    // Xóa tất cả comments liên quan
     await Comment.deleteMany({ diary: diary._id });
 
     // Delete images from Cloudinary
@@ -289,7 +314,7 @@ const deleteDiary = async (req, res, next) => {
   }
 };
 
-// @desc    Toggle public/private
+// @desc    Toggle public/private (now cycling visibilities)
 // @route   PATCH /api/diaries/:id/toggle-visibility
 // @access  Private (owner only)
 const toggleVisibility = async (req, res, next) => {
@@ -310,13 +335,16 @@ const toggleVisibility = async (req, res, next) => {
       });
     }
 
-    diary.isPublic = !diary.isPublic;
+    if (diary.visibility === "private") diary.visibility = "public";
+    else if (diary.visibility === "public") diary.visibility = "private";
+    else diary.visibility = "public"; // default to toggle from friends -> public
+    
     await diary.save();
 
     res.status(200).json({
       success: true,
       data: diary,
-      message: `Diary is now ${diary.isPublic ? "public" : "private"}`,
+      message: `Diary is now ${diary.visibility}`,
     });
   } catch (error) {
     next(error);
@@ -332,9 +360,29 @@ const getPublicDiaries = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const filter = { isPublic: true };
+    let filter = { visibility: { $in: ["public"] } };
+    
+    // Nếu có đăng nhập, lấy được cả list các bài viết 'friends' của bạn bè
+    if (req.user) {
+      const Friendship = require("../models/Friendship");
+      const friendships = await Friendship.find({
+        $or: [{ requester: req.user._id }, { recipient: req.user._id }],
+        status: "accepted"
+      });
+      const friendIds = friendships.map(f => 
+        f.requester.toString() === req.user._id.toString() ? f.recipient : f.requester
+      );
+      
+      filter = {
+        $or: [
+          { visibility: "public" },
+          { visibility: "friends", author: { $in: friendIds } },
+          { author: req.user._id } // always include own diaries just in case they land here
+        ]
+      };
+    }
 
-    // TÃ¬m kiáº¿m theo title
+    // Tìm kiếm theo title
     if (req.query.search) {
       filter.title = { $regex: req.query.search, $options: "i" };
     }
@@ -348,7 +396,7 @@ const getPublicDiaries = async (req, res, next) => {
       Diary.countDocuments(filter),
     ]);
 
-    // Äáº¿m comments cho má»—i diary
+    // Đếm comments cho mỗi diary
     const diaryIds = diaries.map((d) => d._id);
     const commentCounts = await Comment.aggregate([
       { $match: { diary: { $in: diaryIds } } },
@@ -404,25 +452,37 @@ const reactToDiary = async (req, res, next) => {
       });
     }
 
-    if (!diary.isPublic) {
-      return res.status(403).json({
-        success: false,
-        message: "Cannot react to a private diary",
-      });
-    }
-
     const userId = req.user._id.toString();
 
-    // Kiá»ƒm tra user Ä‘Ã£ react emoji nÃ y chÆ°a
+    if (diary.visibility !== "public") {
+      if (diary.author._id.toString() !== userId) {
+        if (diary.visibility === "friends") {
+          const Friendship = require("../models/Friendship");
+          const isFriend = await Friendship.findOne({
+            $or: [
+              { requester: userId, recipient: diary.author._id, status: "accepted" },
+              { requester: diary.author._id, recipient: userId, status: "accepted" }
+            ]
+          });
+          if (!isFriend) {
+            return res.status(403).json({ success: false, message: "Cannot react to this friends-only diary" });
+          }
+        } else {
+          return res.status(403).json({ success: false, message: "Cannot react to a private diary" });
+        }
+      }
+    }
+
+    // Kiểm tra user đã react emoji này chưa
     const existingIndex = diary.reactions.findIndex(
       (r) => r.user.toString() === userId && r.emoji === emoji
     );
 
     if (existingIndex > -1) {
-      // Náº¿u Ä‘Ã£ react emoji nÃ y â†’ bá» react (toggle off)
+      // Nếu đã react emoji này → bỏ react (toggle off)
       diary.reactions.splice(existingIndex, 1);
     } else {
-      // XÃ³a reaction cÅ© cá»§a user (náº¿u cÃ³) rá»“i thÃªm má»›i
+      // Xóa reaction cũ của user (nếu có) rồi thêm mới
       diary.reactions = diary.reactions.filter(
         (r) => r.user.toString() !== userId
       );
@@ -431,7 +491,7 @@ const reactToDiary = async (req, res, next) => {
 
     await diary.save();
 
-    // TÃ­nh láº¡i summary
+    // Tính lại summary
     const reactionSummary = {};
     diary.reactions.forEach((r) => {
       reactionSummary[r.emoji] = (reactionSummary[r.emoji] || 0) + 1;
@@ -477,7 +537,24 @@ const getPublicDiariesByUser = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const filter = { author: req.params.userId, isPublic: true };
+    let filter = { author: req.params.userId, visibility: "public" };
+
+    if (req.user) {
+      if (req.user._id.toString() === req.params.userId) {
+        filter = { author: req.params.userId }; // Owner sees all
+      } else {
+        const Friendship = require("../models/Friendship");
+        const isFriend = await Friendship.findOne({
+          $or: [
+            { requester: req.user._id, recipient: req.params.userId, status: "accepted" },
+            { requester: req.params.userId, recipient: req.user._id, status: "accepted" }
+          ]
+        });
+        if (isFriend) {
+          filter = { author: req.params.userId, visibility: { $in: ["public", "friends"] } };
+        }
+      }
+    }
 
     const [diaries, total] = await Promise.all([
       Diary.find(filter)
