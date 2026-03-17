@@ -99,6 +99,11 @@ const getMyDiaries = async (req, res, next) => {
       filter.title = { $regex: req.query.search, $options: "i" };
     }
 
+    // Filter theo tags
+    if (req.query.tag) {
+      filter.tags = req.query.tag;
+    }
+
     const [diaries, total] = await Promise.all([
       Diary.find(filter)
         .sort({ createdAt: -1 })
@@ -387,6 +392,11 @@ const getPublicDiaries = async (req, res, next) => {
       filter.title = { $regex: req.query.search, $options: "i" };
     }
 
+    // Filter theo tags
+    if (req.query.tag) {
+      filter.tags = req.query.tag;
+    }
+
     const [diaries, total] = await Promise.all([
       Diary.find(filter)
         .sort({ createdAt: -1 })
@@ -538,6 +548,11 @@ const getPublicDiariesByUser = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     let filter = { author: req.params.userId, visibility: "public" };
+
+    // Filter theo tags
+    if (req.query.tag) {
+      filter.tags = req.query.tag;
+    }
 
     if (req.user) {
       if (req.user._id.toString() === req.params.userId) {

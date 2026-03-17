@@ -26,6 +26,8 @@ export default function DashboardPage() {
   const [diaries, setDiaries] = useState<Diary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [allTags, setAllTags] = useState<string[]>([]);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -45,14 +47,27 @@ export default function DashboardPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await apiFetch("/diaries/my?limit=50", {}, token);
-      setDiaries(res.data || []);
+      const params = new URLSearchParams({ limit: "50" });
+      if (selectedTag) params.set("tag", selectedTag);
+
+      const res = await apiFetch(`/diaries/my?${params.toString()}`, {}, token);
+      const fetchedDiaries = res.data || [];
+      setDiaries(fetchedDiaries);
+
+      // Extract all unique tags if not filtering (to populate filter list)
+      if (!selectedTag) {
+        const tags = new Set<string>();
+        fetchedDiaries.forEach((d: Diary) => {
+          d.tags?.forEach(t => tags.add(t));
+        });
+        setAllTags(Array.from(tags).sort());
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, selectedTag]);
 
   useEffect(() => {
     if (token) fetchMyDiaries();
@@ -392,6 +407,35 @@ export default function DashboardPage() {
               </div>
             )}
           </form>
+        </div>
+      )}
+
+      {/* Tag Filtering UI */}
+      {allTags.length > 0 && (
+        <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-none">
+          <button
+            onClick={() => setSelectedTag(null)}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+              selectedTag === null
+                ? "gradient-bg text-white shadow-md shadow-indigo-100"
+                : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+            }`}
+          >
+            All Entries
+          </button>
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                selectedTag === tag
+                  ? "gradient-bg text-white shadow-md shadow-indigo-100"
+                  : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+              }`}
+            >
+              #{tag}
+            </button>
+          ))}
         </div>
       )}
 
